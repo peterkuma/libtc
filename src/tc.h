@@ -105,7 +105,12 @@ struct tc_segment {
     struct tc_range *ranges;
 };
 
-typedef void tc_clustering_cb(const struct tc_tree *tree, void *data);
+typedef void tc_clustering_cb(
+    const struct tc_tree *tree,
+    const void **ds,
+    size_t N,
+    void *data
+);
 
 void
 tc_param_def_init(

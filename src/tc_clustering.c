@@ -82,7 +82,7 @@ tc_clustering(
     l = tc_log_likelihood(tree, ds, N);
     // tc_dump_segments_json(tree);
 
-    // cb(tree, cb_data);
+    cb(tree, ds, N, cb_data);
 
     nsamples = 0;
     while (nsamples < opts->burnin + opts->nsamples) {
@@ -185,7 +185,7 @@ tc_clustering(
             if (accept) {
                 // debug("SPLIT2\n");
                 if (++nsamples > opts->burnin)
-                    cb(tree, cb_data);
+                    cb(tree, ds, N, cb_data);
                 // size_t S = 0;
                 // struct tc_segment *segments = tc_segments(tree, ds, N, &S);
                 // for (size_t s = 0; s < S; s++) {
@@ -276,7 +276,7 @@ tc_clustering(
                     // debug("MOVE\n");
                     // debug("%lf\n", lx);
                     if (++nsamples > opts->burnin)
-                        cb(tree, cb_data);
+                        cb(tree, ds, N, cb_data);
 
                     // size_t S = 0;
                     // struct tc_segment *segments = tc_segments(tree, ds, N, &S);
