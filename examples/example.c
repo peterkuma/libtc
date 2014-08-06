@@ -153,7 +153,7 @@ main(int argc, char *argv[])
     opts.nsamples = 100;
     res = tc_clustering(ds, N, param_def, K, cb, NULL, &opts);
     if (res != 0) {
-        errx(1, "Clustering failed\n");
+        err(1, "Clustering failed");
     }
     return 0;
 }

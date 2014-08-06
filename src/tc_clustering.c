@@ -10,6 +10,7 @@
 #include <assert.h>
 #include <err.h>
 #include <math.h>
+#include <errno.h>
 
 #include "misc.h"
 #include "tree.h"
@@ -64,13 +65,18 @@ tc_clustering(
     bool accept = false; /* Accept proposal? */
     size_t nsamples = 0;
 
-    if (!check_opts(opts))
-        return 1;
+    if (!check_opts(opts)) {
+        errno = EINVAL;
+        return -1;
+    }
 
     init_gsl();
 
     tree = tc_new_tree(10024, param_def, K);
-    if (tree == NULL) return 1;
+    if (tree == NULL) {
+        errno = ENOMEM;
+        return -1;
+    }
 
     /* DEBUG: Create a dummy node. */
     // node = tc_new_node(tree, 0, 2, (double[]) { 2 });
@@ -133,14 +139,20 @@ tc_clustering(
                     i,
                     TC_SIZE[pd->size]
                 );
-                if (part.buf == NULL) return 1;
+                if (part.buf == NULL) {
+                    errno = ENOMEM;
+                    return -1;
+                }
                 new_node = tc_new_node(
                     tree,
                     parent->param,
                     parent->nchildren + 1,
                     part.buf
                 );
-                if (new_node == NULL) return 1;
+                if (new_node == NULL) {
+                    errno = ENOMEM;
+                    return -1;
+                }
                 tc_replace_node(tree, parent, new_node);
                 old_node = parent;
                 for (j = 0; j < i; j++)
@@ -155,11 +167,17 @@ tc_clustering(
                 // debug("%lf, %lf\n", range.min.float64, range.max.float64);
                 part = rand_part(&range, pd);
                 free_range(&range);
-                if (part.buf == NULL) return 1;
+                if (part.buf == NULL) {
+                    errno = ENOMEM;
+                    return -1;
+                }
                 new_node = tc_new_node(tree, k, 2, part.buf);
                 free(part.buf);
                 part.buf = NULL;
-                if (new_node == NULL) return 1;
+                if (new_node == NULL) {
+                    errno = ENOMEM;
+                    return -1;
+                }
                 tc_replace_node(tree, node, new_node);
                 old_node = node;
                 assert(check_tree(tree));
