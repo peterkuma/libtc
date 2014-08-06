@@ -44,7 +44,30 @@
 
 // free(tree);
 
-tc_clustering_cb main_clustering_cb;
+tc_clustering_cb cb;
+
+void
+cb(const struct tc_tree *tree, const void **ds, size_t N, void *data)
+{
+    size_t S = 0;
+
+    struct tc_segment *segments = tc_segments(tree, ds, N, &S);
+    for (size_t s = 0; s < S; s++) {
+        printf("s = %zu, NX[s] = %zu, V[s] = %lf, ((%lf, %lf),(%lf, %lf))\n",
+            s,
+            segments[s].NX,
+            segments[s].V,
+            segments[s].ranges[0].min.float64,
+            segments[s].ranges[0].max.float64,
+            segments[s].ranges[1].min.float64,
+            segments[s].ranges[1].max.float64
+        );
+    }
+    printf("\n");
+    tc_free_segments(segments, S);
+    free(segments);
+    segments = NULL;
+}
 
 int
 main(int argc, char *argv[])
@@ -53,6 +76,7 @@ main(int argc, char *argv[])
     size_t K = 2;
     struct tc_tree *tree;
     struct tc_node *root, *node;
+    int res;
 
     struct tc_param_def param_def[K];
     param_def[0].type = TC_METRIC;
@@ -123,17 +147,9 @@ main(int argc, char *argv[])
     struct tc_opts opts = tc_default_opts;
     opts.burnin = 0;
     opts.nsamples = 300;
-    tree = tc_clustering(ds, N, param_def, K, main_clustering_cb, NULL, &opts);
-    if (tree == NULL) {
+    res = tc_clustering(ds, N, param_def, K, cb, NULL, &opts);
+    if (res != 0) {
         errx(1, "Clustering failed\n");
     }
-    //tc_dump_tree_simple(tree, NULL);
-    free(tree);
     return 0;
-}
-
-void
-main_clustering_cb(const struct tc_tree *tree, void *data)
-{
-    tc_dump_segments_json(tree);
 }
