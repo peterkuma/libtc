@@ -5,6 +5,8 @@
  *
  */
 
+#include <stdbool.h>
+
 #include "tc.h"
 
 #define IS_INT64(pd) ((pd)->size == TC_INT64)
@@ -61,3 +63,7 @@ union tc_valuep rand_part(
     const struct tc_range *range,
     const struct tc_param_def *pd
 );
+
+bool check_tree(const struct tc_tree *tree);
+
+bool check_subtree(const struct tc_tree *tree, const struct tc_node *node);

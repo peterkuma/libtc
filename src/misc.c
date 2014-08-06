@@ -60,13 +60,12 @@ sample(size_t n, const double p[])
     if (p != NULL) {
         for (i = 0; i < n; i++)
             sum += p[i];
-        assert(sum == 1);
     }
 
     double f = 0, r = frand();
     if (p == NULL) return r*n;
     for (i = 0; i < n; i++) {
-        f += p[i];
+        f += p[i]/sum;
         if (r < f) return i;
     }
     assert(0);
@@ -102,4 +101,26 @@ rtnorm(double mean, double sd, double a, double b)
     while (!(x > a && x < b))
         x = mean + gsl_ran_gaussian(rng, sd);
     return x;
+}
+
+/*
+ * Insert `element` into `array`. `n` is the length of array, `i`
+ * is the insert position, and `size` is the size of array elements in bytes.
+ * Returns a newly-allocated array with the element inserted,
+ * or NULL on failure. It is the responsibility of the callee to free the array.
+ */
+void *
+insert(const void *array, size_t n, const void *element, size_t i, size_t size)
+{
+    void *new_array = NULL;
+    void *p = NULL;
+    new_array = calloc(n + 1, size);
+    if (new_array == NULL) return NULL;
+    p = new_array;
+    bcopy(array, p, size*i);
+    p += size*i;
+    bcopy(element, p, size);
+    p += size;
+    bcopy(array + size*i, p, size*(n - i));
+    return new_array;
 }

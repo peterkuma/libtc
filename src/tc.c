@@ -118,8 +118,8 @@ tc_replace_node(
 	} else {
 		tree->root = node;
 	}
-	tree_attach_node(tree, node);
 	tree_detach_node(tree, orig);
+	tree_attach_node(tree, node);
 }
 
 void

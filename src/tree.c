@@ -416,3 +416,37 @@ rand_part(const struct tc_range *range, const struct tc_param_def *pd)
     } else assert(0);
     return part;
 }
+
+/*
+ * Check tree `tree` for correctness.
+ * Returns true when correct, false otherwise.
+ */
+bool
+check_tree(const struct tc_tree *tree)
+{
+    if (tree->param_def == NULL) return false;
+    if (tree->K < 0) return false;
+    if (tree->root == NULL) return false;
+    if (tree->first == NULL) return false;
+    if (tree->last == NULL) return false;
+    return check_subtree(tree, tree->root);
+}
+
+/*
+ * Check subtree of tree `tree` at node `node`.
+ * Returns true when correct, false otherwise.
+ */
+bool
+check_subtree(const struct tc_tree *tree, const struct tc_node *node)
+{
+    size_t i = 0;
+    if (node->nchildren < 0)
+        return false;
+    for (i = 0; i < node->nchildren; i++) {
+        if (node->children[i]->parent != node)
+            return false;
+        if (!check_subtree(tree, node->children[i]))
+            return false;
+    }
+    return true;
+}

@@ -107,6 +107,7 @@ struct tc_segment {
 
 typedef void tc_clustering_cb(
     const struct tc_tree *tree,
+    double l,
     const void **ds,
     size_t N,
     void *data
