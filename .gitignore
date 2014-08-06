@@ -1,0 +1,6 @@
+*.o
+*.os
+*.so
+.sconsign.dblite
+/README.html
+

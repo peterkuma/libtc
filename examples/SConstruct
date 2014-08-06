@@ -1,0 +1,16 @@
+import os
+
+env = Environment()
+
+env.Append(
+    CFLAGS='-std=c11 -Wall -g',
+    LIBS=['tc'],
+    LIBPATH=os.path.join(os.pardir, 'src'),
+    CPPPATH=os.path.join(os.pardir, 'src'),
+    LINKFLAGS=Split('-z origin'),
+    RPATH=env.Literal(os.path.join('\\$$ORIGIN', os.pardir, 'src')),
+)
+
+example = env.Program('example.c')
+# env.Program('tc.c')
+env.Default(example)

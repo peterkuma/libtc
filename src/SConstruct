@@ -1,0 +1,29 @@
+import os
+
+env = Environment(
+    CFLAGS='-std=c11 -Wall -g',
+)
+
+var = Variables()
+var.Add(PathVariable('prefix', 'Installation prefix', '/usr/local', PathVariable.PathIsDir))
+var.Update(env)
+libpath = '${prefix}/lib'
+includepath = '${prefix}/include'
+
+tree = env.SharedObject('tree.c', CFLAGS='-fvisibility=hidden')
+tc = env.SharedLibrary(
+    'tc',
+    [
+        'misc.c',
+        'tc.c',
+        tree,
+        'tc_segments.c',
+        'tc_log_likelihood.c',
+        'tc_clustering.c',
+    ],
+    LIBS=['gsl', 'blas']
+)
+
+env.Alias('install', env.Install(libpath, tc))
+env.Alias('install', env.Install(includepath, 'tc.h'))
+env.Default(tc)
