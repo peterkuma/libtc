@@ -19,8 +19,7 @@
 struct tc_opts tc_default_opts = {
     .burnin = 0,
     .nsamples = 10,
-    .split1_p = 0.1,
-    .split2_p = 0,
+    .split_p = 0.1,
     .merge_p = 0.1,
     .move_p = 0.8,
     .move_sd_frac = 0.1
@@ -28,8 +27,7 @@ struct tc_opts tc_default_opts = {
 
 enum action {
     MOVE,
-    SPLIT1,
-    SPLIT2,
+    SPLIT,
     MERGE
 };
 
@@ -41,7 +39,7 @@ check_opts(const struct tc_opts *opts)
 {
     bool cond;
 
-    cond = opts->merge_p + opts->split1_p + opts->split2_p + opts->move_p == 1;
+    cond = opts->merge_p + opts->split_p + opts->move_p == 1;
     if (!cond) return false;
 
     return true;
@@ -72,7 +70,7 @@ tc_clustering(
 
     init_gsl();
 
-    tree = tc_new_tree(1000024, param_def, K);
+    tree = tc_new_tree(10024, param_def, K);
     if (tree == NULL) {
         errno = ENOMEM;
         return -1;
@@ -110,15 +108,14 @@ tc_clustering(
 
         tc_dump_tree_simple(tree, NULL);
 
-        action = sample(4, (double[]){
+        action = sample(3, (double[]){
             opts->move_p,
-            opts->split1_p,
-            opts->split2_p,
+            opts->split_p,
             opts->merge_p
         });
 
         switch (action) {
-        case SPLIT1:
+        case SPLIT:
             S = count_segments(tree);
             s = sample(S, NULL);
             node = select_segment(tree, s);
@@ -129,7 +126,7 @@ tc_clustering(
             debug("s = %zu\n", s);
 
             if (parent != NULL && k == parent->param) {
-                debug("split1-1\n");
+                debug("split-1\n");
                 pd = &param_def[k];
                 i = find_child(parent, node);
                 node_range(tree, node, k, &range);
@@ -164,7 +161,7 @@ tc_clustering(
                     tc_replace_node(tree, new_node->children[j+1], parent->children[j]);
                 assert(check_tree(tree));
             } else {
-                debug("split1-2\n");
+                debug("split-2\n");
                 node_range(tree, node, k, &range);
                 pd = &tree->param_def[k];
                 // debug("%lf, %lf\n", range.min.float64, range.max.float64);
@@ -190,7 +187,7 @@ tc_clustering(
             p = fmin(1, exp(lx - l));
             accept = sample(2, (double[]){1-p, p});
             if (accept) {
-                debug("SPLIT1\n");
+                debug("SPLIT\n");
                 l = lx;
                 if (++nsamples > opts->burnin) {
                     cb(tree, l, ds, N, cb_data);
@@ -221,100 +218,8 @@ tc_clustering(
                 assert(check_tree(tree));
                 // tree_free_node(new_node);
             }
-
-            // debug("SPLIT1\n");
-            // SS = count_supersegments(tree);
-            // ss = sample(SS);
-            // node = select_supersegment(tree, ss);
-            // i0 = sample(node->nchildren);
-            // n0 = node->children[i0];
-            // node_range(tree, n0, n0->param, &range);
-            // part = rand_part(&range);
-            // free_range(&range);
-            // if (part == NULL) continue;
-            // part =
-            // new_node = tc_new_node(tree, node->param, node->nchildren+1, part);
-            // if (new_node == NULL) continue;
-            // tc_replace_node(node, new_node);
-            // lx = tc_log_likelihood(tree, ds, N);
-            // p = fmin(1, exp(lx - l));
-            // accept = sample(2, (double[]){1-p, p});
-            // if (!accept) {
-            //     tc_replace_node(new_node, node);
-            // }
-
-//          pd = param_def[node->param];
-//
-//          bcopy(node->part, part, sz*k0);
-//          if (IS_INT64(pd)) part.int64[k] = cut.int64;
-//          else if (IS_FLOAT64(pd)) part.float64[k] = cut.float64;
-//          else assert(0);
-//          bcopy(node->part, part.buf + sz*(k0+1), sz*(node->nchildren - k0 - 1));
-//
-//          /* Perform the split. */
-//          size_t sz = TC_SIZE[pd->size];
-//          part.buf = calloc(node->nchildren, sz);
-//          if (part.buf == NULL) return 1;
-//          bcopy(node->part, part, sz*k0);
-//          if (IS_INT64(pd)) part.int64[k] = cut.int64;
-//          else if (IS_FLOAT64(pd)) part.float64[k] = cut.float64;
-//          else assert(0);
-//          bcopy(node->part, part.buf + sz*(k0+1), sz*(node->nchildren - k0 - 1));
-//
-//          new_node = tc_new_node(tree, node->param, node->nchildren+1, part);
-//          bcopy(
-//              node->children,
-//              new_node->children,
-//              sizeof(struct node *)*k0
-//          );
-//          node->children[k0] = tc_new_node(tree, 0, 0, NULL);
-//          node->children[k0].parent = node;
-//          bcopy(
-//              node->children + k0,
-//              new_node->children + k0 + 1,
-//              new_node->nchildren - k0 - 1
-//          );
-            break;
-        case SPLIT2:
-            debug("SPLIT2\n");
-
-            if (K == 1) continue;
-            S = count_segments(tree);
-            s = sample(S, NULL);
-            node = select_segment(tree, s);
-            if (node->parent) {
-                k = sample(K-1, NULL);
-                if (k >= node->parent->param) k++;
-            } else{
-                k = sample(K, NULL);
-            }
-            node_range(tree, node, k, &range);
-            pd = &tree->param_def[node->param];
-            part = rand_part(&range, pd);
-            free_range(&range);
-            if (part.buf == NULL) continue;
-            new_node = tc_new_node(tree, k, 2, part.buf);
-            free(part.buf);
-            if (new_node == NULL) continue;
-            part.buf = NULL;
-            tc_replace_node(tree, node, new_node);
-            lx = tc_log_likelihood(tree, ds, N);
-            p = fmin(1, exp(lx - l));
-            // debug("l = %lf, lx = %lf, p = %lf\n", l, lx, p);
-            accept = sample(2, (double[]){1-p, p});
-            if (accept) {
-                l = lx;
-                if (++nsamples > opts->burnin) {
-                    cb(tree, l, ds, N, cb_data);
-                    tc_dump_tree_simple(tree, NULL);
-                }
-            } else {
-                tc_replace_node(tree, new_node, node);
-                // tree_free_node(new_node);
-            }
             break;
         case MERGE:
-            debug("MERGE\n");
             SS = count_supersegments(tree);
             if (SS == 0) continue;
             ss = sample(SS, NULL);
@@ -350,7 +255,7 @@ tc_clustering(
                 tc_dump_tree_simple(tree, NULL);
                 debug("l = %lf, lx = %lf, p = %lf\n", l, lx, p);
                 if (accept) {
-                    debug("accept\n");
+                    debug("MERGE\n");
                     l = lx;
                     if (++nsamples > opts->burnin) {
                         cb(tree, l, ds, N, cb_data);

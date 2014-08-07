@@ -78,14 +78,9 @@ struct tc_node {
 struct tc_opts {
     size_t burnin; /* Number of burn-in samples. */
     size_t nsamples; /* Number of samples to generate (excl. burn-in). */
-    double split1_p; /* Probability of split. */
-    double split2_p; /* Probability of split. */
+    double split_p; /* Probability of split. */
     double merge_p; /* Probability of merge. */
     double move_p; /* Probability of move. */
-    double split_beta_a; /* Split Beta distribution parameter a. */
-    double split_beta_b; /* Split Beta distribution parameter b. */
-    double merge_beta_a; /* Merge Beta distribution parameter a. */
-    double merge_beta_b; /* Merge Beta distribution parameter b. */
     double move_sd_frac; /* Move standard deviation as a fraction. */
 };
 
