@@ -70,7 +70,7 @@ tc_clustering(
 
     init_gsl();
 
-    tree = tc_new_tree(10024, param_def, K);
+    tree = tc_new_tree(1000024, param_def, K);
     if (tree == NULL) {
         errno = ENOMEM;
         return -1;
@@ -78,7 +78,7 @@ tc_clustering(
 
     /* DEBUG: Create a dummy node. */
     // node = tc_new_node(tree, 0, 2, (double[]) { 2 });
-    // tc_replace_node(tree, tree->root, node);
+    // tc_replace_node(tree->root, node);
     // node = NULL;
 
     // tc_dump_tree_simple(tree, NULL);
@@ -129,7 +129,7 @@ tc_clustering(
                 debug("split-1\n");
                 pd = &param_def[k];
                 i = find_child(parent, node);
-                node_range(tree, node, k, &range);
+                node_range(node, k, &range);
                 cut.float64 = range.min.float64 + frand1()*(range.max.float64 - range.min.float64);
                 free_range(&range);
                 part.buf = array_insert(
@@ -153,16 +153,16 @@ tc_clustering(
                     errno = ENOMEM;
                     return -1;
                 }
-                tc_replace_node(tree, parent, new_node);
+                tc_replace_node(parent, new_node);
                 old_node = parent;
                 for (j = 0; j < i; j++)
-                    tc_replace_node(tree, new_node->children[j], parent->children[j]);
+                    tc_replace_node(new_node->children[j], parent->children[j]);
                 for (j = i; j < node->nchildren; j++)
-                    tc_replace_node(tree, new_node->children[j+1], parent->children[j]);
+                    tc_replace_node(new_node->children[j+1], parent->children[j]);
                 assert(check_tree(tree));
             } else {
                 debug("split-2\n");
-                node_range(tree, node, k, &range);
+                node_range(node, k, &range);
                 pd = &tree->param_def[k];
                 // debug("%lf, %lf\n", range.min.float64, range.max.float64);
                 part = rand_part(&range, pd);
@@ -178,7 +178,7 @@ tc_clustering(
                     errno = ENOMEM;
                     return -1;
                 }
-                tc_replace_node(tree, node, new_node);
+                tc_replace_node(node, new_node);
                 old_node = node;
                 assert(check_tree(tree));
             }
@@ -212,7 +212,7 @@ tc_clustering(
 
                 }
             } else {
-                tc_replace_node(tree, new_node, old_node);
+                tc_replace_node(new_node, old_node);
                 for (i = 0; i < old_node->nchildren; i++)
                     old_node->children[i]->parent = old_node;
                 assert(check_tree(tree));
@@ -226,9 +226,9 @@ tc_clustering(
             node = select_supersegment(tree, ss);
             pd = &tree->param_def[node->param];
             if (pd->type == TC_METRIC) {
-                C = count_movable_cuts(tree, node);
+                C = count_movable_cuts(node);
                 c = sample(C, NULL);
-                i = select_movable_cut(tree, node, c);
+                i = select_movable_cut(node, c);
                 part.float64 = array_remove(
                     node->part.float64,
                     node->nchildren,
@@ -240,11 +240,10 @@ tc_clustering(
                     return -1;
                 }
                 new_node = tc_new_node(tree, node->param, node->nchildren - 1, part.buf);
-                tc_replace_node(tree, node, new_node);
+                tc_replace_node(node, new_node);
                 old_node = node;
                 for (j = 0; j < new_node->nchildren; j++) {
                     tc_replace_node(
-                        tree,
                         new_node->children[i],
                         node->children[j < i ? j : j + 1]
                     );
@@ -262,7 +261,7 @@ tc_clustering(
                         tc_dump_tree_simple(tree, NULL);
                     }
                 } else {
-                    tc_replace_node(tree, new_node, old_node);
+                    tc_replace_node(new_node, old_node);
                     for (j = 0; j < node->nchildren; j++)
                         old_node->children[j]->parent = old_node;
                     // tree_free_node(new_node);
@@ -279,14 +278,14 @@ tc_clustering(
             node = select_supersegment(tree, ss);
             pd = &param_def[node->param];
             if (pd->type == TC_METRIC) {
-                C = count_movable_cuts(tree, node);
+                C = count_movable_cuts(node);
                 c = sample(C, NULL);
-                i = select_movable_cut(tree, node, c);
+                i = select_movable_cut(node, c);
                 cut.float64 = node->part.float64[i];
-                node_range(tree, node->children[i], node->param, &range);
+                node_range(node->children[i], node->param, &range);
                 w1 = range.max.float64 - range.min.float64;
                 free_range(&range);
-                node_range(tree, node->children[i+1], node->param, &range);
+                node_range(node->children[i+1], node->param, &range);
                 w2 = range.max.float64 - range.min.float64;
                 free_range(&range);
 

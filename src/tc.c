@@ -60,7 +60,7 @@ tc_new_tree(size_t size, const struct tc_param_def *param_def, size_t K)
 		errno = ENOMEM;
 		goto error;
 	}
-	tree_attach_node(tree, tree->root);
+	tree_attach_node(tree->root);
 	return tree;
 error:
 	if (tree != NULL) free(tree);
@@ -103,6 +103,7 @@ tc_new_node(
 		errno = ENOMEM;
 		return NULL;
 	}
+	node->tree = tree;
 	node->param = param;
 	bcopy(part, node->part.buf, part_size);
 	for (i = 0; i < node->nchildren; i++) {
@@ -116,13 +117,18 @@ tc_new_node(
 	return node;
 }
 
-void
+int
 tc_replace_node(
-	struct tc_tree *tree,
 	struct tc_node *orig,
 	struct tc_node *node
 ) {
 	size_t i = 0;
+	struct tc_tree *tree = NULL;
+	if (orig->tree != node->tree) {
+		errno = EINVAL;
+		return -1;
+	}
+	tree = orig->tree;
 	if (orig->parent != NULL) {
 		i = find_child(orig->parent, orig);
 		orig->parent->children[i] = node;
@@ -131,8 +137,9 @@ tc_replace_node(
 	} else {
 		tree->root = node;
 	}
-	tree_detach_node(tree, orig);
-	tree_attach_node(tree, node);
+	tree_detach_node(orig);
+	tree_attach_node(node);
+	return 0;
 }
 
 void
@@ -195,7 +202,7 @@ tc_dump_segments_json(const struct tc_tree *tree)
 		printf("[");
 		for (k = 0; k < tree->K; k++) {
 			if (pd->type == TC_METRIC) {
-				node_range(tree, node, k, &range);
+				node_range(node, k, &range);
 				printf("[%lf,%lf]", range.min.float64, range.max.float64);
 				free_range(&range);
 				if (k != tree->K - 1) printf(",");

@@ -66,6 +66,7 @@ union tc_part {
 struct tc_node {
     struct tc_node *parent; /* Parent node. */
     size_t nchildren; /* Number of child nodes. */
+    struct tc_tree *tree; /* Reference to node's tree. */
     size_t param; /* Parameter number. */
     union tc_valuep part; /* Partitioning. */
     size_t part_size; /* part size in bytes. */
@@ -128,9 +129,8 @@ tc_new_node(
     void *part
 );
 
-void
+int
 tc_replace_node(
-    struct tc_tree *tree,
     struct tc_node *orig,
     struct tc_node *node
 );

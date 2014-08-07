@@ -43,7 +43,7 @@ tc_segments(
 
     s = 0;
     for (node = tree->first; node != NULL; node = node->next) {
-        if (!is_segment(tree, node))
+        if (!is_segment(node))
             continue;
         segment = &segments[s];
         node->_aux = segment;
@@ -52,7 +52,7 @@ tc_segments(
         for (k = 0; k < tree->K; k++) {
             range = &segment->ranges[k];
             pd = &tree->param_def[k];
-            node_range(tree, node, k, range);
+            node_range(node, k, range);
             if (IS_INT64(pd))
                 segment->V *= range->max.int64 - range->min.int64;
             else if (IS_FLOAT64(pd))
@@ -68,7 +68,7 @@ tc_segments(
          */
         node = tree->root;
         while (node != NULL) {
-            if (is_segment(tree, node)) {
+            if (is_segment(node)) {
                 segment = (struct tc_segment *) node->_aux;
                 segment->NX++;
                 break;

@@ -113,9 +113,11 @@ tree_alloc_node(struct tc_tree *tree, size_t part_size, size_t nchildren)
  * The node needs to be added to the tree structure in addition.
  */
 void
-tree_attach_node(struct tc_tree *tree, struct tc_node *node)
+tree_attach_node(struct tc_node *node)
 {
     size_t i = 0;
+    struct tc_tree *tree = NULL;
+    tree = node->tree;
     node->next = NULL;
     node->prev = tree->last;
     if (tree->last != NULL)
@@ -124,7 +126,7 @@ tree_attach_node(struct tc_tree *tree, struct tc_node *node)
     if (tree->first == NULL)
         tree->first = node;
     for (i = 0; i < node->nchildren; i++)
-        tree_attach_node(tree, node->children[i]);
+        tree_attach_node(node->children[i]);
 }
 
 /*
@@ -132,11 +134,13 @@ tree_attach_node(struct tc_tree *tree, struct tc_node *node)
  * The node needs to be removed from the tree structure in addition.
  */
 void
-tree_detach_node(struct tc_tree *tree, struct tc_node *node)
+tree_detach_node(struct tc_node *node)
 {
     size_t i = 0;
+    struct tc_tree *tree = NULL;
+    tree = node->tree;
     for (i = 0; i < node->nchildren; i++)
-        tree_detach_node(tree, node->children[i]);
+        tree_detach_node(node->children[i]);
     if (node->prev) node->prev->next = node->next;
     if (node->next) node->next->prev = node->prev;
     if (tree->last == node) tree->last = node->prev;
@@ -210,7 +214,6 @@ init_segment(struct tc_segment *segment, size_t K)
  */
 void
 node_range(
-    const struct tc_tree *tree,
     const struct tc_node *node,
     size_t param,
     struct tc_range *range
@@ -220,7 +223,7 @@ node_range(
     const struct tc_param_def *pd = NULL;
 
     n = node;
-    pd = &tree->param_def[param];
+    pd = &node->tree->param_def[param];
     range->min = pd->min;
     range->max = pd->max;
     range->categories = NULL;
@@ -259,15 +262,13 @@ node_range(
  * Return width of `node` (range size, resp. the number of categories).
  */
 double
-node_width(
-    const struct tc_tree *tree,
-    const struct tc_node *node
-) {
+node_width(const struct tc_node *node)
+{
     double width = 0;
     struct tc_range range;
     const struct tc_param_def *pd = NULL;
-    pd = &tree->param_def[node->param];
-    node_range(tree, node, node->param, &range);
+    pd = &node->tree->param_def[node->param];
+    node_range(node, node->param, &range);
     if (pd->type == TC_NOMINAL) {
         width = range.ncategories;
     } else if (pd->type == TC_METRIC) {
@@ -373,7 +374,7 @@ check_subtree(const struct tc_tree *tree, const struct tc_node *node)
  * Segment is a node with no child nodes.
  */
 bool
-is_segment(const struct tc_tree *tree, const struct tc_node *node)
+is_segment(const struct tc_node *node)
 {
     return node->nchildren == 0;
 }
@@ -388,7 +389,7 @@ count_segments(const struct tc_tree *tree)
     struct tc_node *node = NULL;
     node = tree->first;
     while (node != NULL) {
-        if (is_segment(tree, node)) n++;
+        if (is_segment(node)) n++;
         node = node->next;
     }
     return n;
@@ -405,7 +406,7 @@ select_segment(const struct tc_tree *tree, size_t s)
     struct tc_node *node = NULL;
     node = tree->first;
     while (node != NULL) {
-        if (is_segment(tree, node)) {
+        if (is_segment(node)) {
             if (n == s) return node;
             n++;
         }
@@ -419,17 +420,17 @@ select_segment(const struct tc_tree *tree, size_t s)
  * resp. two or more segments (nominal parameter).
  */
 bool
-is_supersegment(const struct tc_tree *tree, const struct tc_node *node)
+is_supersegment(const struct tc_node *node)
 {
     size_t i = 0;
     size_t S = 0;
     const struct tc_param_def *pd = NULL;
-    pd = &tree->param_def[node->param];
+    pd = &node->tree->param_def[node->param];
     if (pd->type == TC_METRIC) {
         /* Need two adjacent segments. */
         for (i = 1; i < node->nchildren; i++) {
-            if (is_segment(tree, node->children[i-1]) &&
-                is_segment(tree, node->children[i]))
+            if (is_segment(node->children[i-1]) &&
+                is_segment(node->children[i]))
             {
                 return true;
             }
@@ -438,7 +439,7 @@ is_supersegment(const struct tc_tree *tree, const struct tc_node *node)
         /* Need two segments. */
         S = 0;
         for (i = 0; i < node->nchildren; i++)
-            if (is_segment(tree, node->children[i])) S++;
+            if (is_segment(node->children[i])) S++;
         return S >=2;
     } else assert(0);
     return false;
@@ -454,7 +455,7 @@ count_supersegments(const struct tc_tree *tree)
     struct tc_node *node = NULL;
     node = tree->first;
     while (node != NULL) {
-        if (is_supersegment(tree, node))
+        if (is_supersegment(node))
             n++;
         node = node->next;
     }
@@ -472,7 +473,7 @@ select_supersegment(const struct tc_tree *tree, size_t ss)
     struct tc_node *node = NULL;
     node = tree->first;
     while (node != NULL) {
-        if (is_supersegment(tree, node))
+        if (is_supersegment(node))
             if (i++ == ss) return node;
         node = node->next;
     }
@@ -484,25 +485,25 @@ select_supersegment(const struct tc_tree *tree, size_t ss)
  * Movable cut is a cut between two segments.
  */
 bool
-is_movable_cut(const struct tc_tree *tree, const struct tc_node *node, size_t i)
+is_movable_cut(const struct tc_node *node, size_t i)
 {
     const struct tc_param_def *pd = NULL;
-    pd = &tree->param_def[node->param];
+    pd = &node->tree->param_def[node->param];
     assert(pd->type == TC_METRIC);
-    return is_segment(tree, node->children[i]) &&
-        is_segment(tree, node->children[i+1]);
+    return is_segment(node->children[i]) &&
+        is_segment(node->children[i+1]);
 }
 
 /*
  * Return count of movable cuts is `node`.
  */
 size_t
-count_movable_cuts(const struct tc_tree *tree, const struct tc_node *node)
+count_movable_cuts(const struct tc_node *node)
 {
     size_t i = 0;
     size_t n = 0;
     for (i = 0; i + 1 < node->nchildren; i++) {
-        if (is_movable_cut(tree, node, i))
+        if (is_movable_cut(node, i))
             n++;
     }
     return n;
@@ -512,15 +513,12 @@ count_movable_cuts(const struct tc_tree *tree, const struct tc_node *node)
  * Return the index of `c`-th movable cut of `node`.
  */
 size_t
-select_movable_cut(
-    const struct tc_tree *tree,
-    const struct tc_node *node,
-    size_t c
-) {
+select_movable_cut(const struct tc_node *node, size_t c)
+{
     size_t i = 0;
     size_t n = 0;
     for (i = 0; i + 1 < node->nchildren; i++)
-        if (is_movable_cut(tree, node, i))
+        if (is_movable_cut(node, i))
             if (n++ == c) return i;
     return -1;
 }
