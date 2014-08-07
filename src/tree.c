@@ -205,96 +205,6 @@ init_segment(struct tc_segment *segment, size_t K)
 }
 
 /*
- * Count the number of segments (left nodes) in tree `tree`.
- */
-size_t
-count_segments(const struct tc_tree *tree)
-{
-    size_t n = 0;
-    struct tc_node *node = NULL;
-    node = tree->first;
-    while (node != NULL) {
-        if (node->nchildren == 0) n++;
-        node = node->next;
-    }
-    return n;
-}
-
-/*
- * Return the `s`-th segment of tree `tree` or NULL if s is greater than
- * the number of segments.
- */
-struct tc_node *
-select_segment(const struct tc_tree *tree, size_t s)
-{
-    size_t n = 0;
-    struct tc_node *node = NULL;
-    node = tree->first;
-    while (node != NULL) {
-        if (node->nchildren == 0) {
-            if (n == s) return node;
-            n++;
-        }
-        node = node->next;
-    }
-    return NULL;
-}
-
-/*
- * Count the number of super-segments (nodes with all child nodes segments,
- * but not segments themselves) in tree `tree`.
- */
-size_t
-count_supersegments(const struct tc_tree *tree)
-{
-    size_t n = 0;
-    size_t k = 0;
-    struct tc_node *node = NULL;
-    int is_ss = 0;
-    node = tree->first;
-    while (node != NULL) {
-        is_ss = node->nchildren > 0;
-        for (k = 0; k < node->nchildren; k++) {
-            if (node->children[k]->nchildren != 0) {
-                is_ss = 0;
-                break;
-            }
-        }
-        if (is_ss) n++;
-        node = node->next;
-    }
-    return n;
-}
-
-/*
- * Return the `ss`-th super-segment (node with all child nodes segments,
- * but not segments themselves) of tree `tree`, or NULL if `ss` is greater
- * than the number of super-segments.
- */
-struct tc_node *
-select_supersegment(const struct tc_tree *tree, size_t ss)
-{
-    struct tc_node *node = NULL;
-    size_t i = 0;
-    size_t k = 0;
-    int is_ss = 0;
-    node = tree->first;
-    while (node != NULL) {
-        is_ss = node->nchildren > 0;
-        for (k = 0; k < node->nchildren; k++) {
-            if (node->children[k]->nchildren != 0) {
-                is_ss = 0;
-                break;
-            }
-        }
-        if (is_ss && i == ss) return node;
-        if (is_ss) i++;
-        node = node->next;
-    }
-    return NULL;
-}
-
-/*
  * Determine range of node `node` in parameter `param`. The result is saved
  * to `range. The callee should call free_range on `range` after use.
  */
@@ -333,7 +243,7 @@ node_range(
                 else if (IS_INT64(pd))
                     range->min.int64 = MAX(range->min.int64, n->part.int64[i-1]);
             }
-            if (i != n->nchildren - 1) {
+            if (i + 1 != n->nchildren) {
                 if (IS_FLOAT64(pd))
                     range->max.float64 = MIN(range->max.float64, n->part.float64[i]);
                 else if (IS_INT64(pd))
@@ -440,6 +350,8 @@ bool
 check_subtree(const struct tc_tree *tree, const struct tc_node *node)
 {
     size_t i = 0;
+    const struct tc_param_def *pd = NULL;
+    pd = &tree->param_def[node->param];
     if (node->nchildren < 0)
         return false;
     for (i = 0; i < node->nchildren; i++) {
@@ -448,5 +360,167 @@ check_subtree(const struct tc_tree *tree, const struct tc_node *node)
         if (!check_subtree(tree, node->children[i]))
             return false;
     }
+    if (pd->type == TC_METRIC) {
+        for (i = 1; i + 1 < node->nchildren; i++)
+            if (node->part.float64[i] < node->part.float64[i-1])
+                return false;
+    }
     return true;
+}
+
+/*
+ * Returns true if `node` is a segment, or false otherwise.
+ * Segment is a node with no child nodes.
+ */
+bool
+is_segment(const struct tc_tree *tree, const struct tc_node *node)
+{
+    return node->nchildren == 0;
+}
+
+/*
+ * Count the number of segments (left nodes) in tree `tree`.
+ */
+size_t
+count_segments(const struct tc_tree *tree)
+{
+    size_t n = 0;
+    struct tc_node *node = NULL;
+    node = tree->first;
+    while (node != NULL) {
+        if (is_segment(tree, node)) n++;
+        node = node->next;
+    }
+    return n;
+}
+
+/*
+ * Return the `s`-th segment of tree `tree` or NULL if s is greater than
+ * the number of segments.
+ */
+struct tc_node *
+select_segment(const struct tc_tree *tree, size_t s)
+{
+    size_t n = 0;
+    struct tc_node *node = NULL;
+    node = tree->first;
+    while (node != NULL) {
+        if (is_segment(tree, node)) {
+            if (n == s) return node;
+            n++;
+        }
+        node = node->next;
+    }
+    return NULL;
+}
+
+/* Return true if a `node` is a supersegment, or false otherwise.
+ * Supersegment is a node with two adjacent segments (metric parameter),
+ * resp. two or more segments (nominal parameter).
+ */
+bool
+is_supersegment(const struct tc_tree *tree, const struct tc_node *node)
+{
+    size_t i = 0;
+    size_t S = 0;
+    const struct tc_param_def *pd = NULL;
+    pd = &tree->param_def[node->param];
+    if (pd->type == TC_METRIC) {
+        /* Need two adjacent segments. */
+        for (i = 1; i < node->nchildren; i++) {
+            if (is_segment(tree, node->children[i-1]) &&
+                is_segment(tree, node->children[i]))
+            {
+                return true;
+            }
+        }
+    } else if(pd->type == TC_NOMINAL) {
+        /* Need two segments. */
+        S = 0;
+        for (i = 0; i < node->nchildren; i++)
+            if (is_segment(tree, node->children[i])) S++;
+        return S >=2;
+    } else assert(0);
+    return false;
+}
+
+/*
+ * Count the number of supersegments in `tree`.
+ */
+size_t
+count_supersegments(const struct tc_tree *tree)
+{
+    size_t n = 0;
+    struct tc_node *node = NULL;
+    node = tree->first;
+    while (node != NULL) {
+        if (is_supersegment(tree, node))
+            n++;
+        node = node->next;
+    }
+    return n;
+}
+
+/*
+ * Return the `ss`-th supersegment of `tree`, or NULL if `ss` is greater
+ * than the number of supersegments.
+ */
+struct tc_node *
+select_supersegment(const struct tc_tree *tree, size_t ss)
+{
+    size_t i = 0;
+    struct tc_node *node = NULL;
+    node = tree->first;
+    while (node != NULL) {
+        if (is_supersegment(tree, node))
+            if (i++ == ss) return node;
+        node = node->next;
+    }
+    return NULL;
+}
+
+/*
+ * Return true if cut `i` of a metric node `node` is movable, false otherwise.
+ * Movable cut is a cut between two segments.
+ */
+bool
+is_movable_cut(const struct tc_tree *tree, const struct tc_node *node, size_t i)
+{
+    const struct tc_param_def *pd = NULL;
+    pd = &tree->param_def[node->param];
+    assert(pd->type == TC_METRIC);
+    return is_segment(tree, node->children[i]) &&
+        is_segment(tree, node->children[i+1]);
+}
+
+/*
+ * Return count of movable cuts is `node`.
+ */
+size_t
+count_movable_cuts(const struct tc_tree *tree, const struct tc_node *node)
+{
+    size_t i = 0;
+    size_t n = 0;
+    for (i = 0; i + 1 < node->nchildren; i++) {
+        if (is_movable_cut(tree, node, i))
+            n++;
+    }
+    return n;
+}
+
+/*
+ * Return the index of `c`-th movable cut of `node`.
+ */
+size_t
+select_movable_cut(
+    const struct tc_tree *tree,
+    const struct tc_node *node,
+    size_t c
+) {
+    size_t i = 0;
+    size_t n = 0;
+    for (i = 0; i + 1 < node->nchildren; i++)
+        if (is_movable_cut(tree, node, i))
+            if (n++ == c) return i;
+    return -1;
 }

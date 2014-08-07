@@ -155,7 +155,7 @@ tc_dump_tree_simple(const struct tc_tree *tree, const struct tc_node *node)
 	printf("], [");
 	for (i = 0; i < node->nchildren; i++) {
 		tc_dump_tree_simple(tree, node->children[i]);
-		if (i != node->nchildren - 1)
+		if (i + 1 != node->nchildren)
 			printf(", ");
 	}
 	printf("])");

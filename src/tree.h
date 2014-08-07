@@ -39,14 +39,6 @@ int compact_tree(struct tc_tree *new, const struct tc_tree *old);
 
 void init_segment(struct tc_segment *segment, size_t K);
 
-size_t count_segments(const struct tc_tree *tree);
-
-struct tc_node *select_segment(const struct tc_tree *tree, size_t s);
-
-size_t count_supersegments(const struct tc_tree *tree);
-
-struct tc_node *select_supersegment(const struct tc_tree *tree, size_t ss);
-
 void
 node_range(
     const struct tc_tree *tree,
@@ -67,3 +59,33 @@ union tc_valuep rand_part(
 bool check_tree(const struct tc_tree *tree);
 
 bool check_subtree(const struct tc_tree *tree, const struct tc_node *node);
+
+bool is_segment(const struct tc_tree *tree, const struct tc_node *node);
+
+size_t count_segments(const struct tc_tree *tree);
+
+struct tc_node *select_segment(const struct tc_tree *tree, size_t s);
+
+bool is_supersegment(const struct tc_tree *tree, const struct tc_node *node);
+
+size_t count_supersegments(const struct tc_tree *tree);
+
+struct tc_node *select_supersegment(const struct tc_tree *tree, size_t ss);
+
+bool is_movable_cut(
+    const struct tc_tree *tree,
+    const struct tc_node *node,
+    size_t i
+);
+
+size_t count_movable_cuts(
+    const struct tc_tree *tree,
+    const struct tc_node *node
+);
+
+size_t
+select_movable_cut(
+    const struct tc_tree *tree,
+    const struct tc_node *node,
+    size_t c
+);

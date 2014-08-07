@@ -7,6 +7,7 @@
 
 #include <stdlib.h>
 #include <assert.h>
+#include <errno.h>
 
 #include "misc.h"
 #include "tc.h"
@@ -32,12 +33,18 @@ tc_segments(
 
     *S = count_segments(tree);
     segments = calloc(*S, sizeof(struct tc_segment));
+    if (segments == NULL) {
+        errno = ENOMEM;
+        return NULL;
+    }
+
     for (s = 0; s < *S; s++)
         init_segment(&segments[s], tree->K);
 
     s = 0;
     for (node = tree->first; node != NULL; node = node->next) {
-        if (node->nchildren != 0) continue; /* Not a segment. */
+        if (!is_segment(tree, node))
+            continue;
         segment = &segments[s];
         node->_aux = segment;
         /* Determine volume of the segment. */
@@ -61,18 +68,17 @@ tc_segments(
          */
         node = tree->root;
         while (node != NULL) {
-            pd = &tree->param_def[node->param];
-            data.buf = ds[node->param];
-
-            if (node->nchildren == 0) {
+            if (is_segment(tree, node)) {
                 segment = (struct tc_segment *) node->_aux;
                 segment->NX++;
                 break;
             }
 
+            pd = &tree->param_def[node->param];
+            data.buf = ds[node->param];
+
             if (pd->type == TC_METRIC) {
-                size_t ncuts = node->nchildren - 1;
-                for (i = 0; i < ncuts; i++) {
+                for (i = 0; i + 1 < node->nchildren; i++) {
                     if (IS_INT64(pd)) {
                         if (data.int64[n] <= node->part.int64[i]) break;
                     } else if (IS_FLOAT64(pd)) {

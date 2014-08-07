@@ -49,13 +49,16 @@ frand1(void)
 
 /*
  * Sample from `n` possible outcomes with probabilities `p`. If `p` is NULL,
- * all outcomes are assumed to have equal probability.
+ * all outcomes are assumed to have equal probability. `n` has to be greater
+ * than 0.
  */
 size_t
 sample(size_t n, const double p[])
 {
     double sum = 0;
     size_t i = 0;
+
+    assert(n > 0);
 
     if (p != NULL) {
         for (i = 0; i < n; i++)
@@ -110,8 +113,13 @@ rtnorm(double mean, double sd, double a, double b)
  * or NULL on failure. It is the responsibility of the callee to free the array.
  */
 void *
-insert(const void *array, size_t n, const void *element, size_t i, size_t size)
-{
+array_insert(
+    const void *array,
+    size_t n,
+    const void *element,
+    size_t i,
+    size_t size
+) {
     void *new_array = NULL;
     void *p = NULL;
     new_array = calloc(n + 1, size);
@@ -122,5 +130,22 @@ insert(const void *array, size_t n, const void *element, size_t i, size_t size)
     bcopy(element, p, size);
     p += size;
     bcopy(array + size*i, p, size*(n - i));
+    return new_array;
+}
+
+void *
+array_remove(const void *array, size_t n, size_t i, size_t size)
+{
+    void *new_array = NULL;
+    void *p = NULL;
+    assert(n > 0);
+    assert(i >= 0);
+    assert(i < n);
+    new_array = calloc(n - 1, size);
+    if (new_array == NULL) return NULL;
+    p = new_array;
+    bcopy(array, p, size*i);
+    p += size*i;
+    bcopy(array + size*(i+1), p, size*(n - i - 1));
     return new_array;
 }

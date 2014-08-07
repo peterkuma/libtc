@@ -25,10 +25,12 @@ void init_gsl(void);
 
 double rtnorm(double mean, double sd, double a, double b);
 
-void *insert(
+void *array_insert(
     const void *array,
     size_t n,
     const void *element,
     size_t i,
     size_t size
 );
+
+void *array_remove(const void *array, size_t n, size_t i, size_t size);
