@@ -20,6 +20,7 @@
 #include <strings.h>
 #include <inttypes.h>
 #include <stdbool.h>
+#include <errno.h>
 
 #include "misc.h"
 #include "tree.h"
@@ -45,14 +46,20 @@ tc_new_tree(size_t size, const struct tc_param_def *param_def, size_t K)
 {
 	struct tc_tree *tree = NULL;
 	tree = calloc(1, sizeof(tree) + size);
-	if (tree == NULL) goto error;
+	if (tree == NULL) {
+		errno = ENOMEM;
+		goto error;
+	}
 	tree->size = size;
 	tree->last = NULL;
 	tree->p = tree->buf;
 	tree->param_def = param_def;
 	tree->K = K;
 	tree->root = tc_new_leaf(tree);
-	if (tree->root == NULL) goto error;
+	if (tree->root == NULL) {
+		errno = ENOMEM;
+		goto error;
+	}
 	tree_attach_node(tree, tree->root);
 	return tree;
 error:
@@ -92,12 +99,18 @@ tc_new_node(
 	}
 
 	node = tree_alloc_node(tree, part_size, nchildren);
-	if (node == NULL) return NULL;
+	if (node == NULL) {
+		errno = ENOMEM;
+		return NULL;
+	}
 	node->param = param;
 	bcopy(part, node->part.buf, part_size);
 	for (i = 0; i < node->nchildren; i++) {
 		node->children[i] = tc_new_leaf(tree);
-		if (node->children[i] == NULL) return NULL;
+		if (node->children[i] == NULL) {
+			errno = ENOMEM;
+			return NULL;
+		}
 		node->children[i]->parent = node;
 	}
 	return node;
