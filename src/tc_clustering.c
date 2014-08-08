@@ -11,6 +11,7 @@
 #include <err.h>
 #include <math.h>
 #include <errno.h>
+#include <mcheck.h>
 
 #include "misc.h"
 #include "tree.h"
@@ -62,10 +63,25 @@ tc_clustering(
     double p = 0; /* Acceptance probability. */
     bool accept = false; /* Accept proposal? */
     size_t nsamples = 0;
+    size_t i = 0, j = 0, k = 0;
+    size_t S = 0, s = 0;
+    size_t SS = 0, ss = 0;
+    size_t C = 0, c = 0;
+    double w1 = 0, w2 = 0;
+    struct tc_node *node = NULL, *parent = NULL;
+    struct tc_node *old_node = NULL, *new_node = NULL;
+    const struct tc_param_def *pd = NULL;
+    struct tc_range range;
+    double *cuts = NULL;
+    double cut;
+    double new_cut;
+
+    errno = 0;
+    mtrace();
 
     if (!check_opts(opts)) {
         errno = EINVAL;
-        return -1;
+        goto cleanup;
     }
 
     init_gsl();
@@ -73,7 +89,7 @@ tc_clustering(
     tree = tc_new_tree(1000024, param_def, K);
     if (tree == NULL) {
         errno = ENOMEM;
-        return -1;
+        goto cleanup;
     }
 
     /* DEBUG: Create a dummy node. */
@@ -91,19 +107,6 @@ tc_clustering(
 
     nsamples = 0;
     while (nsamples < opts->burnin + opts->nsamples) {
-        size_t i = 0, j = 0, k = 0;
-        size_t S = 0, s = 0;
-        size_t SS = 0, ss = 0;
-        size_t C = 0, c = 0;
-        double w1 = 0, w2 = 0;
-        struct tc_node *node = NULL, *parent = NULL;
-        struct tc_node *old_node = NULL, *new_node = NULL;
-        const struct tc_param_def *pd = NULL;
-        struct tc_range range;
-        union tc_valuep part;
-        union tc_value cut;
-        union tc_value new_cut;
-
         assert(check_tree(tree));
 
         tc_dump_tree_simple(tree, NULL);
@@ -130,28 +133,30 @@ tc_clustering(
                 pd = &param_def[k];
                 i = find_child(parent, node);
                 node_range(node, k, &range);
-                cut.float64 = range.min.float64 + frand1()*(range.max.float64 - range.min.float64);
+                cut = range.min + frand1()*(range.max - range.min);
                 free_range(&range);
-                part.buf = array_insert(
-                    parent->part.buf,
-                    parent->nchildren - 1,
-                    &cut.float64,
+                cuts = array_insert(
+                    parent->cuts,
+                    parent->ncuts,
+                    &cut,
                     i,
-                    TC_SIZE[pd->size]
+                    sizeof(cut)
                 );
-                if (part.buf == NULL) {
+                if (cuts == NULL) {
                     errno = ENOMEM;
-                    return -1;
+                    goto cleanup;
                 }
                 new_node = tc_new_node(
                     tree,
                     parent->param,
                     parent->nchildren + 1,
-                    part.buf
+                    cuts
                 );
+                free(cuts);
+                cuts = NULL;
                 if (new_node == NULL) {
                     errno = ENOMEM;
-                    return -1;
+                    goto cleanup;
                 }
                 tc_replace_node(parent, new_node);
                 old_node = parent;
@@ -163,20 +168,11 @@ tc_clustering(
             } else {
                 debug("split-2\n");
                 node_range(node, k, &range);
-                pd = &tree->param_def[k];
-                // debug("%lf, %lf\n", range.min.float64, range.max.float64);
-                part = rand_part(&range, pd);
-                free_range(&range);
-                if (part.buf == NULL) {
-                    errno = ENOMEM;
-                    return -1;
-                }
-                new_node = tc_new_node(tree, k, 2, part.buf);
-                free(part.buf);
-                part.buf = NULL;
+                cut = range.min + frand1()*(range.max - range.min);
+                new_node = tc_new_node(tree, k, 2, (double[]){ cut });
                 if (new_node == NULL) {
                     errno = ENOMEM;
-                    return -1;
+                    goto cleanup;
                 }
                 tc_replace_node(node, new_node);
                 old_node = node;
@@ -200,10 +196,10 @@ tc_clustering(
                             s,
                             segments[s].NX,
                             segments[s].V,
-                            segments[s].ranges[0].min.float64,
-                            segments[s].ranges[0].max.float64,
-                            segments[s].ranges[1].min.float64,
-                            segments[s].ranges[1].max.float64
+                            segments[s].ranges[0].min,
+                            segments[s].ranges[0].max,
+                            segments[s].ranges[1].min,
+                            segments[s].ranges[1].max
                         );
                     }
                     tc_free_segments(segments, S);
@@ -229,17 +225,18 @@ tc_clustering(
                 C = count_movable_cuts(node);
                 c = sample(C, NULL);
                 i = select_movable_cut(node, c);
-                part.float64 = array_remove(
-                    node->part.float64,
-                    node->nchildren,
-                    i,
-                    TC_SIZE[pd->size]
-                );
-                if (part.float64 == NULL) {
+                cuts = array_remove(node->cuts, node->ncuts, i, sizeof(cut));
+                if (cuts == NULL) {
                     errno = ENOMEM;
-                    return -1;
+                    goto cleanup;
                 }
-                new_node = tc_new_node(tree, node->param, node->nchildren - 1, part.buf);
+                new_node = tc_new_node(tree, node->param, node->nchildren - 1, cuts);
+                if (new_node == NULL) {
+                    errno = ENOMEM;
+                    goto cleanup;
+                }
+                free(cuts);
+                cuts = NULL;
                 tc_replace_node(node, new_node);
                 old_node = node;
                 for (j = 0; j < new_node->nchildren; j++) {
@@ -281,27 +278,20 @@ tc_clustering(
                 C = count_movable_cuts(node);
                 c = sample(C, NULL);
                 i = select_movable_cut(node, c);
-                cut.float64 = node->part.float64[i];
+                cut = node->cuts[i];
                 node_range(node->children[i], node->param, &range);
-                w1 = range.max.float64 - range.min.float64;
+                w1 = range.max - range.min;
                 free_range(&range);
                 node_range(node->children[i+1], node->param, &range);
-                w2 = range.max.float64 - range.min.float64;
+                w2 = range.max - range.min;
                 free_range(&range);
 
                 debug("k = %zu\n", node->param);
                 debug("w1 = %lf, w2 = %lf\n", w1, w2);
-                new_cut.float64 = cut.float64 + rtnorm(0, (w1 + w2)*opts->move_sd_frac, -w1, w2);
-                // debug("cut = %lf, new_cut = %lf\n", cut.float64, new_cut.float64);
-                if (IS_INT64(pd)) /* Not implemented. */
-                    node->part.int64[i] = new_cut.float64;
-                else if (IS_FLOAT64(pd))
-                    node->part.float64[i] = new_cut.float64;
-                else assert(0);
+                new_cut = cut + rtnorm(0, (w1 + w2)*opts->move_sd_frac, -w1, w2);
+                node->cuts[i] = new_cut;
                 lx = tc_log_likelihood(tree, ds, N);
-
                 p = fmin(1, exp(lx - l));
-                // debug("l = %lf, lx = %lf, p = %lf\n", l, lx, p);
                 accept = sample(2, (double[]){1-p, p});
                 if (accept) {
                     debug("MOVE\n");
@@ -311,11 +301,7 @@ tc_clustering(
                         tc_dump_tree_simple(tree, NULL);
                     }
                 } else {
-                    if (IS_INT64(pd)) /* Not implemented. */
-                        node->part.int64[i] = cut.float64;
-                    else if (IS_FLOAT64(pd))
-                        node->part.float64[i] = cut.float64;
-                    else assert(0);
+                    node->cuts[i] = cut;
                 }
             } else if (pd->type == TC_NOMINAL) {
                 /* Not implemented. */
@@ -325,9 +311,10 @@ tc_clustering(
         }
     }
 
-    return 0;
-
-error:
+cleanup:
     if (tree != NULL) free(tree);
-    return 0;
+    if (cuts != NULL) free(cuts);
+    deinit_gsl();
+    muntrace();
+    return errno != 0 ? -1 : 0;
 }

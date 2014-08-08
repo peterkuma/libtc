@@ -58,10 +58,10 @@ cb(const struct tc_tree *tree, double l, const void **ds, size_t N, void *data)
             s,
             segments[s].NX,
             segments[s].V,
-            segments[s].ranges[0].min.float64,
-            segments[s].ranges[0].max.float64,
-            segments[s].ranges[1].min.float64,
-            segments[s].ranges[1].max.float64
+            segments[s].ranges[0].min,
+            segments[s].ranges[0].max,
+            segments[s].ranges[1].min,
+            segments[s].ranges[1].max
         );
     }
     printf("\n");

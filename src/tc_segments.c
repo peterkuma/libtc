@@ -13,9 +13,6 @@
 #include "tc.h"
 #include "tree.h"
 
-#define IS_INT64(pd) ((pd)->size == TC_INT64)
-#define IS_FLOAT64(pd) ((pd)->size == TC_FLOAT64)
-
 struct tc_segment *
 tc_segments(
     const struct tc_tree *tree,
@@ -53,11 +50,7 @@ tc_segments(
             range = &segment->ranges[k];
             pd = &tree->param_def[k];
             node_range(node, k, range);
-            if (IS_INT64(pd))
-                segment->V *= range->max.int64 - range->min.int64;
-            else if (IS_FLOAT64(pd))
-                segment->V *= range->max.float64 - range->min.float64;
-            else assert(0);
+            segment->V *= range->max - range->min;
         }
         s++;
     }
@@ -78,15 +71,12 @@ tc_segments(
             data.buf = ds[node->param];
 
             if (pd->type == TC_METRIC) {
-                for (i = 0; i + 1 < node->nchildren; i++) {
-                    if (IS_INT64(pd)) {
-                        if (data.int64[n] <= node->part.int64[i]) break;
-                    } else if (IS_FLOAT64(pd)) {
-                        if (data.float64[n] <= node->part.float64[i]) break;
-                    } else assert(0);
+                for (i = 0; i  < node->ncuts; i++) {
+                    if (data.float64[n] <= node->cuts[i])
+                        break;
                 }
             } else if (pd->type == TC_NOMINAL) {
-                i = node->part.int64[data.int64[n]];
+                i = node->categories[data.int64[n]];
             } else {
                 assert(0);
             }

@@ -57,19 +57,15 @@ struct tc_tree {
     uint8_t buf[]; /* Buffer in which nodes are stored. */
 };
 
-union tc_part {
-    union tc_valuep cuts;
-    size_t *category_part;
-    uint8_t *buf;
-};
-
 struct tc_node {
     struct tc_node *parent; /* Parent node. */
     size_t nchildren; /* Number of child nodes. */
     struct tc_tree *tree; /* Reference to node's tree. */
     size_t param; /* Parameter number. */
-    union tc_valuep part; /* Partitioning. */
-    size_t part_size; /* part size in bytes. */
+    double *cuts; /* Cuts. */
+    size_t ncuts; /* Number of cuts. */
+    int64_t *categories; /* Categories partitioning. */
+    size_t ncategories; /* Number of categories. */
     struct tc_node **children; /* Child nodes. */
     struct tc_node *next; /* Next node (for sequential traversing). */
     struct tc_node *prev; /* Previous node (for sequential traversing). */
@@ -88,8 +84,8 @@ struct tc_opts {
 extern struct tc_opts tc_default_opts;
 
 struct tc_range {
-    union tc_value min;
-    union tc_value max;
+    double min;
+    double max;
     int64_t *categories;
     size_t ncategories;
 };
@@ -126,7 +122,7 @@ tc_new_node(
     struct tc_tree *tree,
     size_t param,
     size_t nchildren,
-    void *part
+    void *partitioning
 );
 
 int

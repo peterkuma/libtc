@@ -9,6 +9,7 @@
 #include <strings.h>
 #include <assert.h>
 #include <math.h>
+#include <errno.h>
 
 #include "misc.h"
 #include "tree.h"
@@ -75,6 +76,7 @@ free_segment(struct tc_segment *segment)
     for (k = 0; k < segment->K; k++) {
         free_range(&segment->ranges[k]);
     }
+    free(segment->ranges);
     segment->K = 0;
     segment->NX = 0;
 }
@@ -90,22 +92,8 @@ tree_alloc(struct tc_tree *tree, size_t size)
         return NULL; /* No space left in buf. */
     }
     tree->p += size;
+    bzero(obj, size);
     return obj;
-}
-
-struct tc_node *
-tree_alloc_node(struct tc_tree *tree, size_t part_size, size_t nchildren)
-{
-    struct tc_node *node = NULL;
-    node = tree_alloc(tree, sizeof(struct tc_node));
-    if (node == NULL) return NULL;
-    node->part_size = part_size;
-    node->nchildren = nchildren;
-    node->part.buf = tree_alloc(tree, part_size);
-    if (node->part.buf == NULL) return NULL;
-    node->children = tree_alloc(tree, nchildren*sizeof(struct tc_node *));
-    if (node->children == NULL) return NULL;
-    return node;
 }
 
 /*
@@ -156,23 +144,8 @@ tree_detach_node(struct tc_node *node)
 struct tc_node *
 copy_node(const struct tc_node *node, struct tc_tree *tree)
 {
-    struct tc_node *copy;
-    copy = tree_alloc_node(tree, node->part_size, node->nchildren);
-    if (copy == NULL) return NULL;
-    *copy = *node;
-    bcopy(
-        node->part.buf,
-        copy->part.buf,
-        node->part_size
-    );
-    bcopy(
-        node->children,
-        copy->children,
-        node->nchildren
-    );
-    return copy;
-}
 
+}
 
 /*
  * Compact tree `old` into tree `new`. Returns 0 on success, -1 on failure.
@@ -206,6 +179,10 @@ init_segment(struct tc_segment *segment, size_t K)
     segment->NX = 0;
     segment->V = 0;
     segment->ranges = calloc(K, sizeof(struct tc_range));
+    if (segment->ranges == NULL) {
+        errno = ENOMEM;
+        return -1;
+    }
 }
 
 /*
@@ -224,64 +201,27 @@ node_range(
 
     n = node;
     pd = &node->tree->param_def[param];
-    range->min = pd->min;
-    range->max = pd->max;
+    range->min = pd->min.float64;
+    range->max = pd->max.float64;
     range->categories = NULL;
     range->ncategories = 0;
 
-    //debug("pd->min,max = (%" PRId64 ", %" PRId64 ")\n", range->min.int64, range->max.int64);
-
     for (n = node->parent, child = node; n != NULL; child = n, n = n->parent) {
         if (n->param != param) continue;
-
         if (pd->type == TC_METRIC) {
             for (i = 0; i < n->nchildren; i++) {
-                if (n->children[i] == child) break; /* Found. */
+                if (n->children[i] == child)
+                    break; /* Found. */
             }
             assert(i != n->nchildren);
-            //debug("%zu", i);
-            if (i != 0) {
-                if (IS_FLOAT64(pd))
-                    range->min.float64 = MAX(range->min.float64, n->part.float64[i-1]);
-                else if (IS_INT64(pd))
-                    range->min.int64 = MAX(range->min.int64, n->part.int64[i-1]);
-            }
-            if (i + 1 != n->nchildren) {
-                if (IS_FLOAT64(pd))
-                    range->max.float64 = MIN(range->max.float64, n->part.float64[i]);
-                else if (IS_INT64(pd))
-                    range->max.int64 = MIN(range->max.int64, n->part.int64[i]);
-            }
+            if (i != 0)
+                range->min = MAX(range->min, n->cuts[i-1]);
+            if (i + 1 != n->nchildren)
+                range->max = MIN(range->max, n->cuts[i]);
         } else if(pd->type == TC_NOMINAL) {
             /* Not implemented. */
         } else assert(0);
     }
-}
-
-/*
- * Return width of `node` (range size, resp. the number of categories).
- */
-double
-node_width(const struct tc_node *node)
-{
-    double width = 0;
-    struct tc_range range;
-    const struct tc_param_def *pd = NULL;
-    pd = &node->tree->param_def[node->param];
-    node_range(node, node->param, &range);
-    if (pd->type == TC_NOMINAL) {
-        width = range.ncategories;
-    } else if (pd->type == TC_METRIC) {
-        if (IS_INT64(pd))
-            width = range.max.int64 - range.min.int64;
-        else if (IS_FLOAT64(pd))
-            width = range.max.float64 - range.min.float64;
-        else assert(0);
-    } else {
-        assert(0);
-    }
-    free_range(&range);
-    return width;
 }
 
 /*
@@ -296,36 +236,6 @@ find_child(const struct tc_node *node, const struct tc_node *child)
         if (node->children[i] == child) return i;
     }
     return -1;
-}
-
-/*
- * Generate a random partitioning of `range` into two partitions.
- * Returns the partitioning (allocated dynamically), or NULL on failure.
- * The partitioning needs to be freed with `free(part.buf)`.
- */
-union tc_valuep
-rand_part(const struct tc_range *range, const struct tc_param_def *pd)
-{
-    union tc_valuep part;
-    union tc_value cut;
-    part.buf = NULL;
-    if (pd->type == TC_METRIC) {
-        part.buf = calloc(1, TC_SIZE[pd->size]);
-        if (part.buf == NULL) return part;
-        if (IS_INT64(pd)) {
-            if (range->max.int64 - range->min.int64 <= 1)
-                return part; /* We can't split. */
-            cut.int64 = rand() % (range->max.int64 - range->min.int64 - 1) + 1;
-            part.int64[0] = cut.int64;
-        } else if(IS_FLOAT64(pd)) {
-            cut.float64 = range->min.float64 +
-                frand1()*(range->max.float64 - range->min.float64);
-            part.float64[0] = cut.float64;
-        } else assert(0);
-    } else if (pd->type == TC_NOMINAL) {
-        /* Not implemented. */
-    } else assert(0);
-    return part;
 }
 
 /*
@@ -362,8 +272,8 @@ check_subtree(const struct tc_tree *tree, const struct tc_node *node)
             return false;
     }
     if (pd->type == TC_METRIC) {
-        for (i = 1; i + 1 < node->nchildren; i++)
-            if (node->part.float64[i] < node->part.float64[i-1])
+        for (i = 1; i < node->ncuts; i++)
+            if (node->cuts[i] < node->cuts[i-1])
                 return false;
     }
     return true;

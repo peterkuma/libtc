@@ -78,34 +78,55 @@ tc_new_node(
 	struct tc_tree *tree,
 	size_t param,
 	size_t nchildren,
-	void *part
+	void *partitioning
 ) {
 	size_t i = 0;
 	struct tc_node *node = NULL;
-	const struct tc_param_def *pd;
-	size_t part_size;
 
-	pd = &tree->param_def[param];
+    node = tree_alloc(tree, sizeof(struct tc_node));
+    if (node == NULL) {
+    	errno = ENOMEM;
+    	return NULL;
+    }
 
-	/* Determine part_size. */
-	if (nchildren == 0) {
-		part_size = 0;
-	} else {
-		if (pd->type == TC_METRIC) {
-			part_size = (nchildren - 1)*TC_SIZE[pd->size];
-		} else if (pd->type == TC_NOMINAL) {
-			part_size = (pd->max.int64 - pd->min.int64 + 1)*sizeof(size_t);
-		} else assert(0);
-	}
+    node->nchildren = nchildren;
+    node->children = tree_alloc(tree, nchildren*sizeof(node->children));
+    if (node->children == NULL) {
+    	errno = ENOMEM;
+    	return NULL;
+    }
 
-	node = tree_alloc_node(tree, part_size, nchildren);
-	if (node == NULL) {
-		errno = ENOMEM;
-		return NULL;
-	}
 	node->tree = tree;
 	node->param = param;
-	bcopy(part, node->part.buf, part_size);
+	node->ncuts = 0;
+	node->ncategories = 0;
+
+	if (IS_METRIC(node)) {
+		node->ncuts = nchildren > 0 ? nchildren - 1 : 0;
+		node->cuts = tree_alloc(tree, node->ncuts*sizeof(node->cuts));
+		if (node->cuts == NULL) {
+			errno = ENOMEM;
+			return NULL;
+		}
+		bcopy(
+			partitioning,
+			node->cuts,
+			node->ncuts*sizeof(node->cuts)
+		);
+	} else if (IS_NOMINAL(node)) {
+		node->ncategories = PD(node)->max.int64 - PD(node)->min.int64 + 1;
+		node->categories = tree_alloc(tree, node->ncategories*sizeof(node->categories));
+		if (node->categories == NULL) {
+			errno = ENOMEM;
+			return NULL;
+		}
+		bcopy(
+			partitioning,
+			node->categories,
+			node->ncategories*sizeof(node->categories)
+		);
+	} else assert(0);
+
 	for (i = 0; i < node->nchildren; i++) {
 		node->children[i] = tc_new_leaf(tree);
 		if (node->children[i] == NULL) {
@@ -163,11 +184,9 @@ tc_dump_tree_simple(const struct tc_tree *tree, const struct tc_node *node)
 	pd = &tree->param_def[node->param];
 	printf("(%zu, [", node->param);
 	if (pd->type == TC_METRIC) {
-		for (i = 0; i + 1 < node->nchildren; i++) {
-			if (IS_INT64(pd)) printf("%zu", node->part.int64[i]);
-			else if (IS_FLOAT64(pd)) printf("%lf", node->part.float64[i]);
-			else assert(0);
-			if (i < node->nchildren - 2) printf(", ");
+		for (i = 0; i < node->ncuts; i++) {
+			printf("%lf", node->cuts[i]);
+			if (i < node->ncuts - 1) printf(", ");
 		}
 	} else if (pd->type == TC_NOMINAL) {
 		/* Not implemented. */
@@ -203,7 +222,7 @@ tc_dump_segments_json(const struct tc_tree *tree)
 		for (k = 0; k < tree->K; k++) {
 			if (pd->type == TC_METRIC) {
 				node_range(node, k, &range);
-				printf("[%lf,%lf]", range.min.float64, range.max.float64);
+				printf("[%lf,%lf]", range.min, range.max);
 				free_range(&range);
 				if (k != tree->K - 1) printf(",");
 			} else if (pd->type == TC_NOMINAL) {

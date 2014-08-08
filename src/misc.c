@@ -87,6 +87,16 @@ init_gsl(void)
 }
 
 /*
+ * Deinitialize the GNU Scientific Library.
+ */
+void
+deinit_gsl(void)
+{
+   gsl_rng_free(rng);
+}
+
+
+/*
  * Generate a random number from the truncated normal distribution defined
  * by mean `mean`, standard deviation `sd`, and bounds `a`, `b`.
  * The generated number is in the open interval (a, b).
