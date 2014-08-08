@@ -1,7 +1,7 @@
 import os
 
 env = Environment(
-    CFLAGS='-std=c11 -Wall -g',
+    CFLAGS='-std=c11 -Wall -O2 -fstack-protector',
 )
 
 var = Variables()

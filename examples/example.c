@@ -80,15 +80,18 @@ main(int argc, char *argv[])
     int res;
 
     struct tc_param_def param_def[K];
+    bzero(param_def, K*sizeof(param_def));
     param_def[0].type = TC_METRIC;
     param_def[0].size = TC_FLOAT64;
     param_def[0].min.float64 = 1;
     param_def[0].max.float64 = 25;
-    param_def[0].max.float64 = 5;
+    param_def[0].fragment_size = 1;
+    // param_def[0].max.float64 = 5;
     param_def[1].type = TC_METRIC;
     param_def[1].size = TC_FLOAT64;
     param_def[1].min.float64 = 1;
     param_def[1].max.float64 = 25;
+    param_def[1].fragment_size = 1;
     // param_def[1].max.float64 = 5;
 
     const void *ds[2]; /* Data set. */

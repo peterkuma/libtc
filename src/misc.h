@@ -23,6 +23,8 @@ size_t sample(size_t n, const double p[]);
 
 void init_gsl(void);
 
+void deinit_gsl(void);
+
 double rtnorm(double mean, double sd, double a, double b);
 
 void *array_insert(

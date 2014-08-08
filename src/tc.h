@@ -44,6 +44,7 @@ struct tc_param_def {
     enum tc_param_size size; /* Parameter sizes. */
     union tc_value min; /* Minimum parameter value. */
     union tc_value max; /* Maximum parameter value. */
+    double fragment_size; /* Fragment size. */
 };
 
 struct tc_tree {
@@ -79,6 +80,7 @@ struct tc_opts {
     double merge_p; /* Probability of merge. */
     double move_p; /* Probability of move. */
     double move_sd_frac; /* Move standard deviation as a fraction. */
+    size_t max_segments; /* Maximum number of segments. */
 };
 
 extern struct tc_opts tc_default_opts;

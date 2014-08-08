@@ -37,7 +37,7 @@ struct tc_node *copy_node(const struct tc_node *node, struct tc_tree *tree);
 
 int compact_tree(struct tc_tree *new, const struct tc_tree *old);
 
-void init_segment(struct tc_segment *segment, size_t K);
+int init_segment(struct tc_segment *segment, size_t K);
 
 void
 node_range(
@@ -52,7 +52,15 @@ bool check_tree(const struct tc_tree *tree);
 
 bool check_subtree(const struct tc_tree *tree, const struct tc_node *node);
 
-bool is_segment(const struct tc_node *node);
+/*
+ * Returns true if `node` is a segment, or false otherwise.
+ * Segment is a node with no child nodes.
+ */
+inline bool
+is_segment(const struct tc_node *node)
+{
+    return node->nchildren == 0;
+}
 
 size_t count_segments(const struct tc_tree *tree);
 

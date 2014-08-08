@@ -172,7 +172,7 @@ compact_tree(struct tc_tree *new, const struct tc_tree *old)
  * Initialize segment `segment`. `K` is the number of child nodes.
  * Initialized segment needs to be freed with free_segment.
  */
-void
+int
 init_segment(struct tc_segment *segment, size_t K)
 {
     segment->K = K;
@@ -277,16 +277,6 @@ check_subtree(const struct tc_tree *tree, const struct tc_node *node)
                 return false;
     }
     return true;
-}
-
-/*
- * Returns true if `node` is a segment, or false otherwise.
- * Segment is a node with no child nodes.
- */
-bool
-is_segment(const struct tc_node *node)
-{
-    return node->nchildren == 0;
 }
 
 /*

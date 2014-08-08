@@ -3,7 +3,7 @@ import os
 env = Environment()
 
 env.Append(
-    CFLAGS='-std=c11 -Wall -g',
+    CFLAGS='-std=c11 -Wall -g -fstack-protector',
     LIBS=['tc'],
     LIBPATH=os.path.join(os.pardir, 'src'),
     CPPPATH=os.path.join(os.pardir, 'src'),

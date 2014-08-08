@@ -25,6 +25,8 @@ tc_log_likelihood(
     struct tc_segment *segments = NULL;
 
     segments = tc_segments(tree, ds, N, &S);
+    if (segments == NULL)
+        return NAN;
 
     /*
      * Calculate the log-likelihood.
