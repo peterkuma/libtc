@@ -1,6 +1,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <err.h>
+#include <stdbool.h>
+#include <strings.h>
 
 #include <tc.h>
 
@@ -46,7 +48,7 @@
 
 tc_clustering_cb cb;
 
-void
+bool
 cb(const struct tc_tree *tree, double l, const void **ds, size_t N, void *data)
 {
     size_t S = 0;
@@ -68,6 +70,7 @@ cb(const struct tc_tree *tree, double l, const void **ds, size_t N, void *data)
     tc_free_segments(segments, S);
     free(segments);
     segments = NULL;
+    return true;
 }
 
 int

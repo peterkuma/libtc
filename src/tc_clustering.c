@@ -18,8 +18,8 @@
 #include "tc.h"
 
 struct tc_opts tc_default_opts = {
-    .burnin = 0,
     .nsamples = 10,
+    .maxiter = 0,
     .split_p = 0.1,
     .merge_p = 0.1,
     .move_p = 0.8,
@@ -93,18 +93,19 @@ tc_clustering(
     double *cuts = NULL;
     double cut;
     double new_cut;
+    bool res = false;
 
     mtrace();
 
     if (!check_opts(opts)) {
         errno = EINVAL;
-        goto cleanup;
+        goto error;
     }
 
     for (k = 0; k < K; k++) {
         if (!check_pd(&param_def[k])) {
             errno = EINVAL;
-            goto cleanup;
+            goto error;
         }
     }
 
@@ -113,7 +114,7 @@ tc_clustering(
     tree = tc_new_tree(10000024, param_def, K);
     if (tree == NULL) {
         errno = ENOMEM;
-        goto cleanup;
+        goto error;
     }
 
     /* DEBUG: Create a dummy node. */
@@ -131,7 +132,10 @@ tc_clustering(
 
     niter = 0;
     nsamples = 0;
-    while (nsamples < opts->burnin + opts->nsamples) {
+    while (
+        nsamples < opts->nsamples &&
+        (opts->maxiter == 0 || niter < opts->maxiter)
+    ) {
         assert(check_tree(tree));
         niter++;
 
@@ -174,7 +178,7 @@ tc_clustering(
                 );
                 if (cuts == NULL) {
                     errno = ENOMEM;
-                    goto cleanup;
+                    goto error;
                 }
                 new_node = tc_new_node(
                     tree,
@@ -186,7 +190,7 @@ tc_clustering(
                 cuts = NULL;
                 if (new_node == NULL) {
                     errno = ENOMEM;
-                    goto cleanup;
+                    goto error;
                 }
                 tc_replace_node(parent, new_node);
                 old_node = parent;
@@ -199,7 +203,7 @@ tc_clustering(
                 new_node = tc_new_node(tree, k, 2, (double[]){ cut });
                 if (new_node == NULL) {
                     errno = ENOMEM;
-                    goto cleanup;
+                    goto error;
                 }
                 tc_replace_node(node, new_node);
                 old_node = node;
@@ -212,10 +216,9 @@ tc_clustering(
             if (accept) {
                 // debug("SPLIT\n");
                 l = lx;
-                if (++nsamples > opts->burnin) {
-                    cb(tree, l, ds, N, cb_data);
-                    // tc_dump_tree_simple(tree, NULL);
-                }
+                nsamples++;
+                res = cb(tree, l, ds, N, cb_data);
+                if (!res) goto cleanup;
             } else {
                 tc_replace_node(new_node, old_node);
                 for (i = 0; i < old_node->nchildren; i++)
@@ -237,7 +240,7 @@ tc_clustering(
                 cuts = array_remove(node->cuts, node->ncuts, i, sizeof(cut));
                 if (cuts == NULL) {
                     errno = ENOMEM;
-                    goto cleanup;
+                    goto error;
                 }
                 new_node = tc_new_node(
                     tree,
@@ -247,7 +250,7 @@ tc_clustering(
                 );
                 if (new_node == NULL) {
                     errno = ENOMEM;
-                    goto cleanup;
+                    goto error;
                 }
                 free(cuts);
                 cuts = NULL;
@@ -267,10 +270,9 @@ tc_clustering(
                 if (accept) {
                     // debug("MERGE\n");
                     l = lx;
-                    if (++nsamples > opts->burnin) {
-                        cb(tree, l, ds, N, cb_data);
-                        // tc_dump_tree_simple(tree, NULL);
-                    }
+                    nsamples++;
+                    res = cb(tree, l, ds, N, cb_data);
+                    if (!res) goto cleanup;
                 } else {
                     tc_replace_node(new_node, old_node);
                     for (j = 0; j < node->nchildren; j++)
@@ -315,10 +317,9 @@ tc_clustering(
                 if (accept) {
                     // debug("MOVE\n");
                     l = lx;
-                    if (++nsamples > opts->burnin) {
-                        cb(tree, l, ds, N, cb_data);
-                        // tc_dump_tree_simple(tree, NULL);
-                    }
+                    nsamples++;
+                    res = cb(tree, l, ds, N, cb_data);
+                    if (!res) goto cleanup;
                 } else {
                     node->cuts[i] = cut;
                 }
@@ -331,8 +332,9 @@ tc_clustering(
     }
 
     debug("accept ratio = %.2lf%%\n", 100.0*nsamples/niter);
-    errno = 0;
 cleanup:
+    errno = 0;
+error:
     if (cuts != NULL) free(cuts);
     if (tree != NULL) free(tree);
     deinit_gsl();

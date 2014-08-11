@@ -15,6 +15,7 @@
 
 #include <stddef.h>
 #include <inttypes.h>
+#include <stdbool.h>
 
 extern size_t TC_SIZE[];
 
@@ -74,8 +75,8 @@ struct tc_node {
 };
 
 struct tc_opts {
-    size_t burnin; /* Number of burn-in samples. */
     size_t nsamples; /* Number of samples to generate (excl. burn-in). */
+    size_t maxiter; /* Maximum number of iterations. */
     double split_p; /* Probability of split. */
     double merge_p; /* Probability of merge. */
     double move_p; /* Probability of move. */
@@ -99,7 +100,7 @@ struct tc_segment {
     struct tc_range *ranges;
 };
 
-typedef void tc_clustering_cb(
+typedef bool tc_clustering_cb(
     const struct tc_tree *tree,
     double l,
     const void **ds,
