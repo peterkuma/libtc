@@ -31,7 +31,7 @@ Install with:
 	scons install [prefix=<path>]
 
 The installation path can be chosen with the optional argument `prefix`.
-If omitted, the library is installed under `/usr`.
+If omitted, the library is installed under `/usr/local/`.
 
 Example
 -------
