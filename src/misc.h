@@ -8,7 +8,11 @@
 #include <stddef.h>
 #include <stdio.h>
 
+#ifdef DEBUG
 #define debug(...) fprintf(stderr, __VA_ARGS__)
+#else
+#define debug(...)
+#endif /* DEBUG */
 
 #define MAX(x, y) ((x)>=(y)?(x):(y))
 #define MIN(x, y) ((x)<=(y)?(x):(y))
