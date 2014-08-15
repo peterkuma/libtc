@@ -55,9 +55,11 @@ check_pd(const struct tc_param_def *pd)
 {
     /* Check if limits are a multiple of fragment_size. */
     if (pd->fragment_size > 0) {
-        if (fmod(pd->min.float64, pd->fragment_size) != 0)
+        if (pd->min.float64 - fmod(pd->min.float64, pd->fragment_size)
+            != pd->min.float64)
             return false;
-        if (fmod(pd->max.float64, pd->fragment_size) != 0)
+        if (pd->max.float64 - fmod(pd->max.float64, pd->fragment_size)
+            != pd->max.float64)
             return false;
     }
     return true;
