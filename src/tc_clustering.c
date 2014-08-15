@@ -53,6 +53,26 @@ check_opts(const struct tc_opts *opts)
 static bool
 check_pd(const struct tc_param_def *pd)
 {
+    if (pd->type != TC_METRIC && pd->type != TC_NOMINAL)
+        return false;
+
+    if (pd->size != TC_FLOAT64 && pd->size != TC_INT64)
+        return false;
+
+    if (pd->type == TC_METRIC) {
+        if (pd->size != TC_FLOAT64)
+            return false;
+        if (pd->min.float64 >= pd->max.float64)
+            return false;
+    }
+
+    if (pd->type == TC_NOMINAL) {
+        if (pd->size != TC_INT64)
+            return false;
+        if (pd->min.int64 >= pd->max.float64)
+            return false;
+    }
+
     /* Check if limits are a multiple of fragment_size. */
     if (pd->fragment_size > 0) {
         if (pd->min.float64 - fmod(pd->min.float64, pd->fragment_size)
