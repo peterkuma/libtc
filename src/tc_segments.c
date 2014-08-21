@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <errno.h>
+#include <math.h>
 
 #include "misc.h"
 #include "tc.h"
@@ -27,6 +28,8 @@ tc_segments(
     struct tc_range *range = NULL;
     struct tc_segment *segments = NULL;
     struct tc_segment *segment = NULL;
+    double *p = NULL;
+    double V = 0;
 
     *S = count_segments(tree);
     segments = calloc(*S, sizeof(struct tc_segment));
@@ -50,7 +53,8 @@ tc_segments(
             range = &segment->ranges[k];
             pd = &tree->param_def[k];
             node_range(node, k, range);
-            segment->V *= range->max - range->min;
+            V = range->max - range->min;
+            segment->V *= V > 0 ? V : 1;
         }
         s++;
     }
@@ -71,9 +75,27 @@ tc_segments(
             data.buf = ds[node->param];
 
             if (pd->type == TC_METRIC) {
-                for (i = 0; i  < node->ncuts; i++) {
-                    if (data.float64[n] <= node->cuts[i])
-                        break;
+                if (isnan(data.float64[n])) {
+                    /* Assign element randomly according to size of children. */
+                    p = calloc(node->nchildren, sizeof(double));
+                    if (p == NULL) {
+                        errno = ENOMEM;
+                        return NULL;
+                    }
+                    for (i = 0; i < node->nchildren; i++) {
+                        struct tc_range range;
+                        node_range(node->children[i], node->param, &range);
+                        p[i] = range.max - range.min;
+                        free_range(&range);
+                    }
+                    i = sample(node->nchildren, p);
+                    free(p);
+                    p = NULL;
+                } else {
+                    for (i = 0; i  < node->ncuts; i++) {
+                        if (data.float64[n] <= node->cuts[i])
+                            break;
+                    }
                 }
             } else if (pd->type == TC_NOMINAL) {
                 i = node->categories[data.int64[n]];
