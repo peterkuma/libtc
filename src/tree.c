@@ -21,9 +21,9 @@ min(union tc_valuep data, size_t N, enum tc_param_size size)
     size_t n = 0;
     union tc_value value;
     if (size == TC_FLOAT64) {
-        value.float64 = INFINITY;
+        value.float64 = NAN;
         for (n = 0; n < N; n++)
-            if (data.float64[n] < value.float64)
+            if (isnan(value.float64) || data.float64[n] < value.float64)
                 value.float64 = data.float64[n];
     } else if (size == TC_INT64) {
         value.int64 = INT64_MAX;
@@ -40,9 +40,9 @@ max(union tc_valuep data, size_t N, enum tc_param_size size)
     size_t n = 0;
     union tc_value value;
     if (size == TC_FLOAT64) {
-        value.float64 = -INFINITY;
+        value.float64 = NAN;
         for (n = 0; n < N; n++)
-            if (data.float64[n] > value.float64)
+            if (isnan(value.float64) || data.float64[n] > value.float64)
                 value.float64 = data.float64[n];
     } else if (size == TC_INT64) {
         value.int64 = INT64_MAX;

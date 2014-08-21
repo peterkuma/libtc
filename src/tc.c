@@ -40,6 +40,13 @@ tc_param_def_init(struct tc_param_def *pd, const void *data, size_t N)
 	pd->min = min(data_, N, pd->size);
 	pd->max = max(data_, N, pd->size);
 
+	if (pd->type == TC_METRIC) {
+		if (isnan(pd->min.float64) || isnan(pd->max.float64)) {
+			pd->min.float64 = 0;
+			pd->max.float64 = 0;
+		}
+	}
+
 	if (pd->type == TC_METRIC && pd->fragment_size != 0) {
 		pd->min.float64 = pd->min.float64 -
 			fmod(pd->min.float64, pd->fragment_size);

@@ -35,7 +35,10 @@ tc_log_likelihood(
     l1 = 0;
     for (s = 0; s < S; s++) {
         segment = &segments[s];
-        if (segment->NX == 0) continue;
+        if (segment->NX == 0)
+            continue;
+        if (segment->V == 0)
+            continue;
         l1 -= segment->NX*log(segment->V);
     }
     // debug("l1 = %lf\n", l1);

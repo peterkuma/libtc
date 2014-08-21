@@ -62,14 +62,14 @@ check_pd(const struct tc_param_def *pd)
     if (pd->type == TC_METRIC) {
         if (pd->size != TC_FLOAT64)
             return false;
-        if (pd->min.float64 >= pd->max.float64)
+        if (!(pd->min.float64 <= pd->max.float64))
             return false;
     }
 
     if (pd->type == TC_NOMINAL) {
         if (pd->size != TC_INT64)
             return false;
-        if (pd->min.int64 >= pd->max.float64)
+        if (!(pd->min.int64 <= pd->max.float64))
             return false;
     }
 
