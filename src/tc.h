@@ -165,6 +165,10 @@ tc_segments(
 void
 tc_dump_tree_simple(const struct tc_tree *tree, const struct tc_node *node);
 
-void tc_dump_segments_json(const struct tc_tree *tree);
+void tc_dump_segments_json(
+    const struct tc_tree *tree,
+    const void **ds,
+    size_t N
+);
 
 #endif /* TC_H */

@@ -217,67 +217,33 @@ tc_dump_tree_simple(const struct tc_tree *tree, const struct tc_node *node)
 }
 
 void
-tc_dump_segments_json(const struct tc_tree *tree)
+tc_dump_segments_json(const struct tc_tree *tree, const void **ds, size_t N)
 {
-	size_t k = 0;
-	struct tc_range range;
-	const struct tc_node *node = NULL;
-	const struct tc_param_def *pd = NULL;
-	bool is_first = true;
+    size_t S = 0;
+    size_t k = 0;
+    struct tc_segment *segments = NULL;
+    const struct tc_param_def *pd;
+    segments = tc_segments(tree, ds, N, &S);
+    struct tc_range range;
 
-	printf("{\"segments\":[");
-	for (node = tree->first; node != NULL; node = node->next) {
-		if (node->nchildren != 0)
-			continue;
-		if (!is_first) printf(",");
-		is_first = false;
-		pd = &tree->param_def[node->param];
-		printf("[");
+    printf("{ \"segments\": [");
+    for (size_t s = 0; s < S; s++) {
+		if (s != 0) printf(", ");
+		printf("{ \"NX\": %zu, \"ranges\": [", segments[s].NX);
 		for (k = 0; k < tree->K; k++) {
+			if (k != 0) printf(", ");
+			pd = &tree->param_def[k];
 			if (pd->type == TC_METRIC) {
-				node_range(node, k, &range);
+				range = segments[s].ranges[k];
 				printf("[%lf,%lf]", range.min, range.max);
-				free_range(&range);
-				if (k != tree->K - 1) printf(",");
 			} else if (pd->type == TC_NOMINAL) {
 				/* Not implemented. */
 			} else assert(0);
 		}
-		printf("]");
-	}
-	printf("]}\n");
+		printf("] }");
+    }
+    printf("]}\n");
+    tc_free_segments(segments, S);
+    free(segments);
+    segments = NULL;
 }
-
-// void
-// tc_dump_segments_json(const struct tc_tree *tree)
-// {
-//     size_t S = 0;
-//     struct tc_segment *segments = NULL;
-//     const struct tc_param_def *pd;
-//     segments = tc_segments(tree, ds, N, &S);
-//     struct tc_range range;
-//     printf("{\"segments\":[");
-//     for (size_t s = 0; s < S; s++) {
-// 		if (s != 0) printf(",");
-// 		printf("[");
-// 		for (k = 0; k < tree->K; k++) {
-// 			if (k != 0) printf(", ");
-// 			pd = tree->param_def[k];
-// 			if (pd->type == TC_METRIC) {
-// 				range = segments[s].ranges[k];
-// 				if (IS_FLOAT64(pd))
-// 					printf("[%lf,%lf]", range.min.float64, range.max.float64);
-// 				else if (IS_INT64(pd))
-// 					/* Not implemented. */
-// 				else assert(0);
-// 			} else if (pd->type == TC_NOMINAL) {
-// 				/* Not implemented. */
-// 			} else assert(0);
-// 		}
-// 		printf("]");
-//     }
-//     printf("]}\n");
-//     tc_free_segments(segments, S);
-//     free(segments);
-//     segments = NULL;
-// }
