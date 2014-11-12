@@ -9,7 +9,7 @@ into a number of rectangular segments, on which the probability
 density function is assumed to have a uniform distribution.
 Clustering trees are generated using a Metropolis-Hastings sampler.
 
-The package [rtc](https://bitbucket.org/pkuma/rtc) provides an easy-to-use
+The package [rtc](https://github.com/peterkuma/rtc) provides an easy-to-use
 binding for the R language.
 
 Installation
@@ -315,3 +315,9 @@ partitioning is performed.
 
 	Calculate the log-likelihood of drawing data `ds` from tree `tree`.
 	`N` is the number of elements in `ds`.
+
+Thanks
+------
+
+This library was developed thanks to the support of PIXEL FEDERATION, s.r.o.
+
