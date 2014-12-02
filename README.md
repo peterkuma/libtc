@@ -61,7 +61,11 @@ the form:
 	1/V1^N1 1/V2^N2 ... 1/Vn^Nn N1!N2!...Nn! / (N + n)!
 
 where V1, ..., Vn are volumes of partitions and N1, ..., Nn are populations
-of elements in partitions.
+of elements in partitions. It is the result of integrating over all possible
+constants defining the probability density function on the individual
+partitions (can be performed analytically using the Beta function).
+The prior probability for the constants is assumed to be uniform on the
+in interval [0, 1].
 
 Installation
 ------------
