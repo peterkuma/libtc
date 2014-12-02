@@ -12,6 +12,57 @@ Clustering trees are generated using a Metropolis-Hastings sampler.
 The package [rtc](https://github.com/peterkuma/rtc) provides an easy-to-use
 binding for the R language.
 
+Motivation
+----------
+
+libtc is a library which implements an MCMC sampler to produce a clustering
+(here in the sense of partitioning a parameter space into rectangular areas)
+of a number of elements. In a single dimension, this is equivalent to producing
+a histogram with adaptable bounds. The unique aspect about this technique
+is that it works with arbitrary number of dimensions, metric and nominal
+parameters and is statistically objective.
+
+Elements are defined by their parameters, i.e. they are points in the
+parameter space. The partitioning of the parameter space is rectangular,
+which means it is divided into a finite set of non-overlapping rectangles
+spanning the whole parameter space. This allows future elements to be
+attributed into a partition.
+
+libtc was developed as an algorithm for automatically producing segmentation
+of players of a free-to-play computer game into a relatively small number of
+segments according to their differing parameters, e.g. age, country, level,
+etc.
+
+The partitioning is formulated as a tree, where each node defines partitioning
+of the parent rectangle into a number of child rectangles by means of straight
+lines (surfaces). New partitioning can be added, moved, or removed
+in the MCMC process, eventually leading to a relatively optimal partitioning.
+
+The goodness of partitioning, i.e. its likelihood (posterior probability
+in Bayesian terms) is determined by the application of the Bayes theorem.
+Elements are thought of as having been drawn from a probability density function
+of such a form where the density is constant over each rectangle of the
+partitioning, but otherwise unknown. This is a valid situation in the Bayesian
+statistics, and we can infer what the posterior probability of our concrete
+partitioning is, given this "observation" of elements. It turns out that
+this probability can be derived analytically, and is similar to the formula
+for entropy, but in a more extended form. Crucially, the likelihood
+is the result of balance between volume of rectangles and how populated by
+elements they are. Favored are large partitions with few elements,
+small partitions with many elements, and highly uneven populations
+among partitions. It turns out that these aspects
+are naturally in opposition, and give rise to strong gradients,
+allowing us to discern between better or worse partitionings,
+and yield practically meaningful results.
+
+The formula for likelihood/posterior probability of a partitioning takes
+the form:
+
+	1/V1^N1 1/V2^N2 ... 1/Vn^Nn N1!N2!...Nn! / (N + n)!
+
+where V1, ..., Vn are volumes of partitions and N1, ..., Nn are populations
+of elements in partitions.
+
 Installation
 ------------
 
