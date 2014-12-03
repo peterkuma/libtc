@@ -228,153 +228,184 @@ Initialize parameter definition `pd`.
 (i.e. a subset of a dataset). `N` is the number of elements in data.
 Determines ranges of `data` necessary for subsequent computations.
 
-* struct tc_tree \***tc_new_tree**(
-	size_t *size*,
-	const struct tc_param_def \**param_def*,
-	size_t *K*
+##### tc_new_tree
+
+```C
+struct tc_tree *tc_new_tree(size_t size, const struct tc_param_def *param_def, size_t K)
+```
+
+Create a new tree. `size` is the size of tree memory buffer in bytes,
+`param_def` are the parameter definitions and `K` is the number of
+parameters.
+
+Returns a pointer to the new tree or NULL on failure.
+The tree should be deallocated with `free`.
+
+##### tc_clustering
+
+```C
+int tc_clustering(
+    const void *ds[],
+    size_t N,
+    const struct tc_param_def param_def[],
+    size_t K,
+    tc_clustering_cb cb,
+    void *cb_data,
+    const struct tc_opts *opts
 )
+```
 
-	Create a new tree. `size` is the size of tree memory buffer in bytes,
-	`param_def` are the parameter definitions and `K` is the number of
-	parameters.
+Perform clustering of dataset `ds`. This function implements a
+Metropolis-Hastings sampler to generate clustering trees.
 
-	Returns a pointer to the new tree or NULL on failure.
-	The tree should be deallocated with `free`.
+`ds` is the dataset, `N` is the number of elements in dataset,
+`param_def` are parameter definitions, `K` is the number of parameters.
 
-* int **tc_clustering**(
-    const void **ds*[],
-    size_t *N*,
-    const struct tc_param_def *param_def*[],
-    size_t *K*,
-    tc_clustering_cb *cb*,
-    void \**cb_data*,
-    const struct tc_opts \**opts*
+`opts` is a stucture containing additional options:
+
+```C
+struct tc_opts {
+    size_t nsamples; /* Number of samples to generate (excl. burn-in). */
+    size_t maxiter; /* Maximum number of iterations. */
+    double split_p; /* Probability of split. */
+    double merge_p; /* Probability of merge. */
+    double move_p; /* Probability of move. */
+    double move_sd_frac; /* Move standard deviation as a fraction. */
+    size_t max_segments; /* Maximum number of segments. */
+};
+```
+
+The callback function `cb` is called for every sample accepted by the
+sampler. It has the following form:
+
+```C
+bool cb(
+    const struct tc_tree *tree,
+    double l,
+    const void **ds,
+    size_t N,
+    void *data
+);
+```
+
+where `tree` is the tree, `l` is the log-likelihood of dataset being
+drawn from the segmentation, `ds` and `N` are as in `tc_clustering`,
+and `data` is an arbitrary user-supplied pointer passed to `tc_clustering`
+as `cb_data`.
+
+##### tc_segments
+
+```C
+struct tc_segment *tc_segments(
+	const struct tc_tree *tree
+	const union value *ds[],
+	size_t N,
+	size_t *S
 )
+```
 
-	Perform clustering of dataset `ds`. This function implements a
-	Metropolis-Hastings sampler to generate clustering trees.
+Return segments defined by tree `tree`.
+Segments correspend to leaf nodes of the tree.
+`ds` is the data set, and `N` is the number of elements in data set.
+The total number of segments is stored in `S`.
 
-	`ds` is the dataset, `N` is the number of elements in dataset,
-	`param_def` are parameter definitions, `K` is the number of parameters.
+Returns an array of segments, which the callee should
+free with `tc_free_segments` and `free`.
 
-	`opts` is a stucture containing additional options:
+Segment is an instance of `tc_segment`:
 
-		struct tc_opts {
-		    size_t nsamples; /* Number of samples to generate (excl. burn-in). */
-		    size_t maxiter; /* Maximum number of iterations. */
-		    double split_p; /* Probability of split. */
-		    double merge_p; /* Probability of merge. */
-		    double move_p; /* Probability of move. */
-		    double move_sd_frac; /* Move standard deviation as a fraction. */
-		    size_t max_segments; /* Maximum number of segments. */
-		};
+```C
+struct tc_segment {
+	size_t NX;
+	double V;
+	struct tc_range ranges[];
+};
+```
 
-	The callback function `cb` is called for every sample accepted by the
-	sampler. It has the following form:
+where `NX` is the number of elements in segment, `V` is the volume of
+segment (product of ranges), and `ranges` is an array
+of ranges in each parameter.
 
-	bool **cb**(
-	    const struct tc_tree \**tree*,
-	    double *l*,
-	    const void \*\**ds*,
-	    size_t *N*,
-	    void \**data*
-	);
+`tc_range` is a structure defining a metric or nominal range:
 
-	where `tree` is the tree, `l` is the log-likelihood of dataset being
-	drawn from the segmentation, `ds` and `N` are as in `tc_clustering`,
-	and `data` is an arbitrary user-supplied pointer passed to `tc_clustering`
-	as `cb_data`.
+```C
+struct tc_range {
+	double min;
+	double max;
+	int64_t *categories;
+	size_t ncategories;
+}
+```
 
-* struct tc_segment \***tc_segments**(
-	const struct tc_tree \**tree*
-	const union value \**ds*[],
-	size_t *N*,
-	size_t \**S*
-)
+In the case of TC_METRIC parameter, `min` and `max` is the range
+of segment in the respective parameter.
 
-	Return segments defined by tree `tree`.
-	Segments correspend to leaf nodes of the tree.
-	`ds` is the data set, and `N` is the number of elements in data set.
-	The total number of segments is stored in `S`.
+In the case of TC_NOMINAL parameter, categories is an array of `categories`
+belonging to the segment, and `ncategories` is the number of categories.
 
-	Returns an array of segments, which the callee should
-	free with `tc_free_segments` and `free`.
+##### tc_free_segments
 
-	Segment is an instance of `tc_segment`:
+```C
+void tc_free_segments(struct tc_segment *segments, size_t S)
 
-		struct tc_segment {
-			size_t NX;
-			double V;
-			struct tc_range ranges[];
-		};
-
-	where `NX` is the number of elements in segment, `V` is the volume of
-	segment (product of ranges), and `ranges` is an array
-	of ranges in each parameter.
-
-	`tc_range` is a structure defining a metric or nominal range:
-
-		struct tc_range {
-			double min;
-			double max;
-			int64_t *categories;
-			size_t ncategories;
-		}
-
-	In the case of TC_METRIC parameter, `min` and `max` is the range
-	of segment in the respective parameter.
-
-	In the case of TC_NOMINAL parameter, categories is an array of `categories`
-	belonging to the segment, and `ncategories` is the number of categories.
-
-* void **tc_free_segments**(struct tc_segment \**segments*, size_t *S*)
-
-	Free array of segments `segments`. `S` is the number of segments.
-	This only frees the internal structures. If allocated
-	dynamically, the array itself needs to be freed with `free`.
+Free array of segments `segments`. `S` is the number of segments.
+This only frees the internal structures. If allocated
+dynamically, the array itself needs to be freed with `free`.
 
 #### Miscellaneous functions
 
-* struct tc_node \***tc_new_node**(
-	struct tc_tree \**tree*,
-	size_t *param*,
-	size_t *nchildren*,
-	void \**partitioning*
+##### tc_new_node
+
+```C
+struct tc_node *tc_new_node(
+	struct tc_tree *tree,
+	size_t param,
+	size_t nchildren,
+	void *partitioning
+)
+```
+
+Create a new node in `tree`. `param` is the parameter number over which
+node splits the parameter space, `nchildren` is the number of child nodes,
+and `partitioning` is the definition of partitioning. For metric parameters,
+partitioning is an array of splits of type `double`.
+
+Returns a pointer to the new node or NULL on failure. The node does
+not need to be freed (it is allocated in the tree buffer).
+
+##### tc_new_leaf
+
+```C
+struct tc_node *c_new_leaf(struct tc_tree *tree)
+
+Create a new leaf node in `tree`.
+
+Returns a pointer to the new node or NULL on failure. The node does
+not need to be freed (it is allocated in the tree buffer).
+
+##### tc_reaplce_node
+
+```C
+int tc_replace_node(struct tc_node *orig, struct tc_node *node)
+
+Replace node `orig` with `node`. The original node is removed from the
+tree structure, but remains allocated in the tree buffer.
+
+Returns 0 on success, -1 on failure.
+
+##### tc_log_likelihood
+
+```C
+double tc_log_likelihood(
+	const struct tc_tree *tree,
+	const union tc_value *ds[],
+	size_t N
 )
 
-	Create a new node in `tree`. `param` is the parameter number over which
-	node splits the parameter space, `nchildren` is the number of child nodes,
-	and `partitioning` is the definition of partitioning. For metric parameters,
-	partitioning is an array of splits of type `double`.
-
-	Returns a pointer to the new node or NULL on failure. The node does
-	not need to be freed (it is allocated in the tree buffer).
-
-* struct tc_node \***tc_new_leaf**(struct tc_tree \**tree*)
-
-	Create a new leaf node in `tree`.
-
-	Returns a pointer to the new node or NULL on failure. The node does
-	not need to be freed (it is allocated in the tree buffer).
-
-* int **tc_replace_node**(struct tc_node \**orig*, struct tc_node \**node*)
-
-	Replace node `orig` with `node`. The original node is removed from the
-	tree structure, but remains allocated in the tree buffer.
-
-	Returns 0 on success, -1 on failure.
-
-* double **tc_log_likelihood**(
-	const struct tc_tree \**tree*,
-	const union tc_value \**ds*[],
-	size_t *N*
-)
-
-	Calculate the log-likelihood of drawing data `ds` from tree `tree`.
-	`N` is the number of elements in `ds`.
+Calculate the log-likelihood of drawing data `ds` from tree `tree`.
+`N` is the number of elements in `ds`.
 
 Thanks
 ------
 
 This library was developed thanks to the support of PIXEL FEDERATION, s.r.o.
-
