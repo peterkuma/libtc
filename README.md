@@ -347,6 +347,7 @@ belonging to the segment, and `ncategories` is the number of categories.
 
 ```C
 void tc_free_segments(struct tc_segment *segments, size_t S)
+```
 
 Free array of segments `segments`. `S` is the number of segments.
 This only frees the internal structures. If allocated
