@@ -217,7 +217,8 @@ partitioning is performed.
 
 #### Main functions
 
-*
+* **tc_param_def_init**
+
 	```C
 	void tc_param_def_init(struct tc_param_def *pd,	const void *data, size_t N)
 	```
