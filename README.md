@@ -377,6 +377,7 @@ not need to be freed (it is allocated in the tree buffer).
 
 ```C
 struct tc_node *c_new_leaf(struct tc_tree *tree)
+```
 
 Create a new leaf node in `tree`.
 
@@ -387,6 +388,7 @@ not need to be freed (it is allocated in the tree buffer).
 
 ```C
 int tc_replace_node(struct tc_node *orig, struct tc_node *node)
+```
 
 Replace node `orig` with `node`. The original node is removed from the
 tree structure, but remains allocated in the tree buffer.
@@ -401,6 +403,7 @@ double tc_log_likelihood(
 	const union tc_value *ds[],
 	size_t N
 )
+```
 
 Calculate the log-likelihood of drawing data `ds` from tree `tree`.
 `N` is the number of elements in `ds`.
