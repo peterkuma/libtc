@@ -179,21 +179,25 @@ Dataset is defined by arrays of values, one array for each parameter.
 Only metric parameters of type `double` are supported.
 E.g. a dataset with two metric parameters and 8 elements can be defined as:
 
-	void **ds[2];
-	ds[0] = (double[]) { 1, 2, 1, 2, 4, 5, 4, 5 };
-	ds[1] = (double[]) { 1, 1, 2, 2, 4, 4, 5, 5 };
+```C
+void **ds[2];
+ds[0] = (double[]) { 1, 2, 1, 2, 4, 5, 4, 5 };
+ds[1] = (double[]) { 1, 1, 2, 2, 4, 4, 5, 5 };
+```
 
 ### Parameters definition
 
 Parameters are defined by an array of `tc_param_def` instances:
 
-	struct tc_param_def {
-		enum tc_param_type type;
-		enum tc_param_size size;
-	    union tc_value min;
-	    union tc_value max;
-		double fragment_size;
-	};
+```C
+struct tc_param_def {
+	enum tc_param_type type;
+	enum tc_param_size size;
+    union tc_value min;
+    union tc_value max;
+	double fragment_size;
+};
+```
 
 `type` is the type of parameter:
 
