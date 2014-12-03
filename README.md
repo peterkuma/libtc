@@ -389,7 +389,7 @@ Create a new leaf node in `tree`.
 Returns a pointer to the new node or NULL on failure. The node does
 not need to be freed (it is allocated in the tree buffer).
 
-##### tc_reaplce_node
+##### tc_replace_node
 
 ```C
 int tc_replace_node(struct tc_node *orig, struct tc_node *node)
