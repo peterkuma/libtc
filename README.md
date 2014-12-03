@@ -217,11 +217,10 @@ partitioning is performed.
 
 #### Main functions
 
-* void **tc_param_def_init**(
-	struct tc_param_def \**pd*,
-	const void *data,
-	size_t *N*
-)
+*
+	```C
+	void tc_param_def_init(struct tc_param_def *pd,	const void *data, size_t N)
+	```
 
 	Initialize parameter definition `pd`.
 	`data` is an array of data values in a given parameter
