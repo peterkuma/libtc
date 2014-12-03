@@ -217,16 +217,16 @@ partitioning is performed.
 
 #### Main functions
 
-* **tc_param_def_init**
+##### tc_param_def_init
 
-	```C
-	void tc_param_def_init(struct tc_param_def *pd,	const void *data, size_t N)
-	```
+```C
+void tc_param_def_init(struct tc_param_def *pd,	const void *data, size_t N)
+```
 
-	Initialize parameter definition `pd`.
-	`data` is an array of data values in a given parameter
-	(i.e. a subset of a dataset). `N` is the number of elements in data.
-	Determines ranges of `data` necessary for subsequent computations.
+Initialize parameter definition `pd`.
+`data` is an array of data values in a given parameter
+(i.e. a subset of a dataset). `N` is the number of elements in data.
+Determines ranges of `data` necessary for subsequent computations.
 
 * struct tc_tree \***tc_new_tree**(
 	size_t *size*,
