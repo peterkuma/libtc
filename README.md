@@ -9,8 +9,10 @@ into a number of rectangular segments, on which the probability
 density function is assumed to have a uniform distribution.
 Clustering trees are generated using a Metropolis-Hastings sampler.
 
-The package [rtc](https://github.com/peterkuma/rtc) provides an easy-to-use
-binding for the R language.
+This software is released under the terms of the MIT License (see `LICENSE`).
+
+**Note:** The package [rtc](https://github.com/peterkuma/rtc) provides an
+easy-to-use binding for the R language.
 
 Motivation
 ----------
